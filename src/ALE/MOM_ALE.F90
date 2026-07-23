@@ -122,6 +122,7 @@ type, public :: ALE_CS ; private
   integer :: id_v_preale = -1 !< diagnostic id for meridional velocity before ALE.
   integer :: id_h_preale = -1 !< diagnostic id for layer thicknesses before ALE.
   integer :: id_T_preale = -1 !< diagnostic id for temperatures before ALE.
+  integer :: id_T_postale = -1 !< diagnostic id for temperatures post ALE.
   integer :: id_S_preale = -1 !< diagnostic id for salinities before ALE.
   integer :: id_e_preale = -1 !< diagnostic id for interface heights before ALE.
   integer :: id_vert_remap_h = -1      !< diagnostic id for layer thicknesses used for remapping
@@ -409,6 +410,8 @@ subroutine ALE_register_diags(Time, G, GV, US, diag, CS)
       'Salinity before remapping', 'PSU', conversion=US%S_to_ppt)
   CS%id_e_preale = register_diag_field('ocean_model', 'e_preale', diag%axesTi, Time, &
       'Interface Heights before remapping', 'm', conversion=US%Z_to_m)
+  CS%id_T_postale = register_diag_field('ocean_model', 'T_postale', diag%axesTL, Time, &
+      'Temperature after remapping', 'degC', conversion=US%C_to_degC)
 
   CS%id_dzRegrid = register_diag_field('ocean_model', 'dzRegrid', diag%axesTi, Time, &
       'Change in interface height due to ALE regridding', 'm', conversion=GV%H_to_m)
@@ -989,8 +992,8 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
         Tr%t(i,j,:) = tr_column(:)
       endif ; enddo ; enddo
 
-      ! post temperature after remapping has occured, possibly temporary.
-      if (Tr%id_tr_post_remap> 0) call post_data(Tr%id_tr_post_remap, Tr%t, CS%diag)
+      ! post temperature after remapping has occured, possibly temporary as this should be T at end of timestep
+      if (Tr%id_T_postale> 0) call post_data(Tr%id_T_postale, Tr%t, CS%diag)
 
       ! tendency diagnostics.
       if (present(dt)) then
