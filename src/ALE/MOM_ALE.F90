@@ -993,7 +993,9 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
       endif ; enddo ; enddo
 
       ! post temperature after remapping has occured, possibly temporary as this should be T at end of timestep
-      if (Tr%id_T_postale> 0) call post_data(Tr%id_T_postale, Tr%t, CS%diag)
+      if (Tr%name == "temp") then;
+        if (CS%id_T_postale> 0) call post_data(CS%id_T_postale, Tr%t, CS%diag)
+      endif
 
       ! tendency diagnostics.
       if (present(dt)) then
