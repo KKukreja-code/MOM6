@@ -358,6 +358,10 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
         trim(name)//"_post_horzn", diag%axesTL, Time, &
         trim(longname)//" after horizontal transport (advection/diffusion) has occurred", &
         trim(units), conversion=Tr%conc_scale)
+    Tr%id_tr_post_remap = register_diag_field("ocean_model", &
+        trim(name)//"_post_remap", diag%axesTL, Time, &
+        trim(longname)//" after vertical remapping has occcured,", &
+        trim(units), conversion=Tr%conc_scale)
     if (Tr%diag_form == 1) then
       Tr%id_adx = register_diag_field("ocean_model", trim(shortnm)//"_adx", &
           diag%axesCuL, Time, trim(flux_longname)//" advective zonal flux" , &

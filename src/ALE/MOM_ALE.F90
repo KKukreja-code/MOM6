@@ -989,6 +989,9 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
         Tr%t(i,j,:) = tr_column(:)
       endif ; enddo ; enddo
 
+      ! post temperature after remapping has occured, possibly temporary.
+      if (Tr%id_tr_post_remap> 0) call post_data(Tr%id_tr_post_remap, Tr%t, CS%diag)
+
       ! tendency diagnostics.
       if (present(dt)) then
         if (Tr%id_remap_conc > 0) then
@@ -1013,7 +1016,7 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
   endif  ! endif for ntr > 0
 
 
-  if (CS%id_vert_remap_h > 0) call post_data(CS%id_vert_remap_h, h_old, CS%diag)
+  if (CS%id_vert_remap_h > 0) call post_data(CS%id_vert_remap_h, h_new, CS%diag)
   if ((CS%id_vert_remap_h_tendency > 0) .and. present(dt)) then
     do k = 1, nz ; do j = G%jsc,G%jec ; do i = G%isc,G%iec
       work_cont(i,j,k) = (h_new(i,j,k) - h_old(i,j,k))*Idt
