@@ -1527,8 +1527,7 @@ subroutine check_remapped_values(n0, h0, u0, ppoly_r_E, deg, ppoly_r_coefs, &
   call measure_input_bounds( n0, h0, u0, ppoly_r_E, h0tot, h0err, u0tot, u0err, u0min, u0max )
   call measure_output_bounds( n1, h1, u1, h1tot, h1err, u1tot, u1err, u1min, u1max )
 
-  if (iMethod<5) return ! We except PQM until we've debugged it
-
+  ! Temporary printing of errors
   write(0,*) 'Print out errors that are check conservation during remapping of tracer:'
   write(0,*) 'abs(u1tot-u0tot) = ', abs(u1tot-u0tot)
   write(0,*) '(u0err+u1err)+uh_err = ', (u0err+u1err)+uh_err
@@ -1536,6 +1535,9 @@ subroutine check_remapped_values(n0, h0, u0, ppoly_r_E, deg, ppoly_r_coefs, &
   write(0,*) 'Thickness checks'
   write(0,*) 'abs(h1tot-h0tot) = ', abs(h1tot-h0tot)
   write(0,*) 'abs(h1tot-h0tot)<h0err+h1err = ', abs(h1tot-h0tot)-h0err+h1err
+
+  if (iMethod<5) return ! We except PQM until we've debugged it
+
   if ( (abs(u1tot-u0tot)>(u0err+u1err)+uh_err .and. abs(h1tot-h0tot)<h0err+h1err) &
       .or. (u1min<u0min .or. u1max>u0max) ) then
     write(0,*) 'iMethod = ',iMethod
