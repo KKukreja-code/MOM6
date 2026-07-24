@@ -1536,7 +1536,7 @@ subroutine check_remapped_values(n0, h0, u0, ppoly_r_E, deg, ppoly_r_coefs, &
   write(0,*) 'abs(h1tot-h0tot) = ', abs(h1tot-h0tot)
   write(0,*) 'abs(h1tot-h0tot)<h0err+h1err = ', abs(h1tot-h0tot)-h0err+h1err
 
-  if (iMethod<5) return ! We except PQM until we've debugged it
+  if (iMethod==5) return ! We except PQM until we've debugged it
 
   if ( (abs(u1tot-u0tot)>(u0err+u1err)+uh_err .and. abs(h1tot-h0tot)<h0err+h1err) &
       .or. (u1min<u0min .or. u1max>u0max) ) then
