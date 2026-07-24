@@ -388,6 +388,10 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
           trim(shortnm)//"_advection_scheme_variance_production", diag%axesTL, Time, &
           "Spurious variance production of "//trim(shortnm)//" variance due to advection", &
           trim(Tr%units)//"2 m s-1", conversion=(TR%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
+      Tr%id_remap_variance_production_2d = register_diag_field("ocean_model", &
+          trim(shortnm)//"_id_remap_variance_production_2d", diag%axesTL, Time, &
+          "Vertical integral of spurious variance production of "//trim(shortnm)//" variance due to remapping", &
+          trim(Tr%units)//"2 m s-1", conversion=(TR%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     else
       Tr%id_adx = register_diag_field("ocean_model", trim(shortnm)//"_adx", &
           diag%axesCuL, Time, "Advective (by residual mean) Zonal Flux of "//trim(flux_longname), &
@@ -416,6 +420,10 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
       Tr%id_advection_scheme_variance_production = register_diag_field("ocean_model", &
           trim(shortnm)//"_advection_scheme_variance_production", diag%axesTL, Time, &
           "Spurious variance production of "//trim(shortnm)//" variance due to advection", &
+          trim(Tr%units)//"2 m s-1", conversion=(TR%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
+      Tr%id_remap_variance_production_2d = register_diag_field("ocean_model", &
+          trim(shortnm)//"_id_remap_variance_production_2d", diag%axesT1, Time, &
+          "Vertical integral of spurious variance production of "//trim(shortnm)//" variance due to remapping", &
           trim(Tr%units)//"2 m s-1", conversion=(TR%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     endif
     Tr%id_zint = register_diag_field("ocean_model", trim(shortnm)//"_zint", &

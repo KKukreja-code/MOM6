@@ -929,6 +929,9 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
                                                        ! cell thickness [H T-1 ~> m s-1 or kg m-2 s-1]
   real, dimension(SZI_(G),SZJ_(G))          :: work_2d ! The rate of change of column-integrated tracer
                                                        ! content [Conc H T-1 ~> Conc m s-1 or Conc kg m-2 s-1]
+  real, dimension(SZI_(G),SZJ_(G))          :: work_2d_sq ! The rate of change of column-integrated tracer
+                                                          ! content squared
+                                                          ! [Conc2 H T-1 ~> Conc2 m s-1 or Conc2 kg m-2 s-1]
   logical :: PCM(GV%ke) ! If true, do PCM remapping from a cell.
   real :: Idt           ! The inverse of the timestep [T-1 ~> s-1]
   real :: h1(GV%ke)     ! A column of source grid layer thicknesses [H ~> m or kg m-2]
@@ -950,6 +953,7 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
     Idt = 1.0/dt
     work_conc(:,:,:) = 0.0
     work_cont(:,:,:) = 0.0
+    work_2d_sq(:,:) = 0.0
   endif
 
   ! Remap all registered tracers, including temperature and salinity.
@@ -986,6 +990,12 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
               work_cont(i,j,k) = (tr_column(k)*h2(k) - Tr%t(i,j,k)*h1(k)) * Idt
             enddo
           endif
+          if (Tr%id_remap_variance_production_2d > 0) then
+            do k=1,GV%ke
+              work_2d_sq(i,j) = work_2d_sq(i,j) + &
+                                   (((tr_column(k)*tr_column(k))*h2(k)) - ((Tr%t(i,j,k)*Tr%t(i,j,k))*h1(k))) * Idt
+            enddo
+          endif
         endif
 
         ! update tracer concentration
@@ -1014,6 +1024,9 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
             enddo
           enddo ; enddo
           call post_data(Tr%id_remap_cont_2d, work_2d, CS%diag)
+        endif
+        if (Tr%id_remap_variance_production_2d > 0) then
+          call post_data(Tr%id_remap_variance_production_2d, work_2d_sq, CS%diag)
         endif
       endif
     enddo ! m=1,ntr
