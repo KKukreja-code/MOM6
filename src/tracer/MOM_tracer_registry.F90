@@ -613,9 +613,9 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
           diag%axesT1, Time, var_lname, conv_units, conversion=Tr%conv_scale*US%s_to_T)
 
       Tr%id_remap_variance_production_2d = register_diag_field("ocean_model", &
-          trim(Tr%flux_nameroot)//"_remap_variance_production_2d", diag%axesTL, Time, &
+          trim(Tr%flux_nameroot)//"_remap_variance_production_2d", diag%axesT1, Time, &
           "Vertical integral of spurious variance production of "//trim(shortnm)//" variance due to remapping", &
-          trim(Tr%units)//"2 m s-1", conversion=(TR%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
+          trim(Tr%units)//"2 m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     endif
 
     if (use_ALE .and. (Reg%ntr<MAX_FIELDS_) .and. Tr%remap_tr) then
