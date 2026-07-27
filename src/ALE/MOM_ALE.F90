@@ -123,13 +123,15 @@ type, public :: ALE_CS ; private
   integer :: id_v_preale = -1 !< diagnostic id for meridional velocity before ALE.
   integer :: id_h_preale = -1 !< diagnostic id for layer thicknesses before ALE.
   integer :: id_T_preale = -1 !< diagnostic id for temperatures before ALE.
-  integer :: id_T_postale = -1 !< diagnostic id for temperatures post ALE.
   integer :: id_S_preale = -1 !< diagnostic id for salinities before ALE.
   integer :: id_e_preale = -1 !< diagnostic id for interface heights before ALE.
   integer :: id_vert_remap_h = -1      !< diagnostic id for layer thicknesses used for remapping
   integer :: id_vert_remap_h_tendency = -1 !< diagnostic id for layer thickness tendency due to ALE
   integer :: id_remap_delta_integ_u2 = -1  !< Change in depth-integrated rho0*u**2/2
   integer :: id_remap_delta_integ_v2 = -1  !< Change in depth-integrated rho0*v**2/2
+
+  ! diagnostic for fields after ALE remapping, this is temporary
+  integer :: id_T_postale = -1 !< diagnostic id for temperatures post ALE.
 
 end type
 
@@ -928,9 +930,12 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)) :: work_cont ! The rate of change of cell-integrated tracer
                                                        ! content [Conc H T-1 ~> Conc m s-1 or Conc kg m-2 s-1] or
                                                        ! cell thickness [H T-1 ~> m s-1 or kg m-2 s-1]
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)) :: work_contsq ! The rate of change of cell-integrated tracer content
+                                                       ! squared [Conc H T-1 ~> Conc m s-1 or Conc kg m-2 s-1] or
+                                                       ! cell thickness [H T-1 ~> m s-1 or kg m-2 s-1]
   real, dimension(SZI_(G),SZJ_(G))          :: work_2d ! The rate of change of column-integrated tracer
                                                        ! content [Conc H T-1 ~> Conc m s-1 or Conc kg m-2 s-1]
-  real, dimension(SZI_(G),SZJ_(G))          :: work_2d_sq ! The rate of change of column-integrated tracer
+  real, dimension(SZI_(G),SZJ_(G))          :: work_2dsq ! The rate of change of column-integrated tracer
                                                           ! content squared
                                                           ! [Conc2 H T-1 ~> Conc2 m s-1 or Conc2 kg m-2 s-1]
   logical :: PCM(GV%ke) ! If true, do PCM remapping from a cell.
@@ -954,12 +959,13 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
     Idt = 1.0/dt
     work_conc(:,:,:) = 0.0
     work_cont(:,:,:) = 0.0
+    work_contsq(:,:,:) = 0.0
   endif
 
   ! Remap all registered tracers, including temperature and salinity.
   if (ntr>0) then
     if (show_call_tree) call callTree_waypoint("remapping tracers (ALE_remap_tracers)")
-    !$OMP parallel do default(shared) private(h1,h2,tr_column,Tr,PCM,work_conc,work_cont,work_2d,work_2d_sq)
+    !$OMP parallel do default(shared) private(h1,h2,tr_column,Tr,PCM,work_conc,work_cont,work_contsq,work_2d,work_2dsq)
     do m=1,ntr ! For each tracer
       Tr => Reg%Tr(m)
       do j = G%jsc,G%jec ; do i = G%isc,G%iec ; if (G%mask2dT(i,j)>0.) then
@@ -991,10 +997,8 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
             enddo
           endif
           if (Tr%id_remap_variance_production_2d > 0) then
-            work_2d_sq(i,j) = 0.0
             do k=1,GV%ke
-              work_2d_sq(i,j) = work_2d_sq(i,j) + &
-                                   (((tr_column(k)*tr_column(k))*h2(k)) - ((Tr%t(i,j,k)*Tr%t(i,j,k))*h1(k))) * Idt
+              work_contsq(i,j,k) = (((tr_column(k)*tr_column(k))*h2(k)) - ((Tr%t(i,j,k)*Tr%t(i,j,k))*h1(k))) * Idt
             enddo
           endif
         endif
@@ -1027,7 +1031,13 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
           call post_data(Tr%id_remap_cont_2d, work_2d, CS%diag)
         endif
         if (Tr%id_remap_variance_production_2d > 0) then
-          call post_data(Tr%id_remap_variance_production_2d, work_2d_sq, CS%diag)
+          do j = G%jsc,G%jec ; do i = G%isc,G%iec
+            work_2dsq(i,j) = 0.0
+            do k=1,GV%ke
+              work_2dsq(i,j) = work_2dsq(i,j) + work_contsq(i,j,k)
+            enddo
+          enddo ; enddo
+          call post_data(Tr%id_remap_variance_production_2d, work_2dsq, CS%diag)
         endif
       endif
     enddo ! m=1,ntr
