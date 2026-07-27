@@ -1003,7 +1003,6 @@ subroutine step_MOM(forces_in, fluxes_in, sfc_state, Time_start, time_int_in, CS
       ! Apply diabatic forcing, do mixing, and regrid.
       call step_MOM_thermo(CS, G, GV, US, u, v, h, CS%tv, fluxes, dtdia, &
                            Time_local, .false., Waves=Waves)
-      write(6,*) 'model dtdia = ', dtdia
       if ( CS%use_ALE_algorithm ) &
         call ALE_regridding_and_remapping(CS, G, GV, US, u, v, h, CS%tv, dtdia, Time_local)
       call post_diabatic_halo_updates(CS, G, GV, US, u, v, h, CS%tv)
