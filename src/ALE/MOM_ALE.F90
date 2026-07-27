@@ -954,7 +954,6 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
     Idt = 1.0/dt
     work_conc(:,:,:) = 0.0
     work_cont(:,:,:) = 0.0
-    work_2d_sq(:,:) = 0.0
   endif
 
   ! Remap all registered tracers, including temperature and salinity.
@@ -992,6 +991,7 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
             enddo
           endif
           if (Tr%id_remap_variance_production_2d > 0) then
+            work_2d_sq(i,j) = 0.0
             do k=1,GV%ke
               work_2d_sq(i,j) = work_2d_sq(i,j) + &
                                    (((tr_column(k)*tr_column(k))*h2(k)) - ((Tr%t(i,j,k)*Tr%t(i,j,k))*h1(k))) * Idt
