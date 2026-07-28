@@ -611,6 +611,11 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
       Tr%id_remap_cont_2d = register_diag_field('ocean_model', &
           trim(Tr%flux_nameroot)//'h_tendency_vert_remap_2d', &
           diag%axesT1, Time, var_lname, conv_units, conversion=Tr%conv_scale*US%s_to_T)
+ 
+      Tr%id_remap_variance_production = register_diag_field("ocean_model", &
+          trim(Tr%flux_nameroot)//"_remap_variance_production", diag%axesTL, Time, &
+          "Spurious variance production of "//trim(shortnm)//" variance due to remapping", &
+          trim(Tr%units)//"2 m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
 
       Tr%id_remap_variance_production_2d = register_diag_field("ocean_model", &
           trim(Tr%flux_nameroot)//"_remap_variance_production_2d", diag%axesT1, Time, &

@@ -995,9 +995,12 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
               work_cont(i,j,k) = (tr_column(k)*h2(k) - Tr%t(i,j,k)*h1(k)) * Idt
             enddo
           endif
-          if (Tr%id_remap_variance_production_2d > 0) then
+          if (Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0) then
             do k=1,GV%ke
-              work_contsq(i,j,k) = (((tr_column(k)*tr_column(k))*h2(k)) - ((Tr%t(i,j,k)*Tr%t(i,j,k))*h1(k))) * Idt
+              ! work_conrsq(i,j,k) = ...
+
+              ! version that is ok when considering vertical integral
+              ! work_contsq(i,j,k) = (((tr_column(k)*tr_column(k))*h2(k)) - ((Tr%t(i,j,k)*Tr%t(i,j,k))*h1(k))) * Idt
             enddo
           endif
         endif
@@ -1018,6 +1021,9 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
         endif
         if (Tr%id_remap_cont > 0) then
           call post_data(Tr%id_remap_cont, work_cont, CS%diag)
+        endif
+        if (Tr%id_remap_variance_production > 0) then
+          call post_data(Tr%id_remap_variance_production, work_cont, CS%diag)
         endif
 
         if (Tr%id_remap_cont_2d > 0) then
