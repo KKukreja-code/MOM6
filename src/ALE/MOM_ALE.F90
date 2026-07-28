@@ -999,8 +999,8 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
             do k=1,GV%ke
               ! work_conrsq(i,j,k) = ...
 
-              ! version that is ok when considering vertical integral
-              ! work_contsq(i,j,k) = (((tr_column(k)*tr_column(k))*h2(k)) - ((Tr%t(i,j,k)*Tr%t(i,j,k))*h1(k))) * Idt
+              ! version that is ok when considering vertical integral, comment out and replace
+              work_contsq(i,j,k) = (((tr_column(k)*tr_column(k))*h2(k)) - ((Tr%t(i,j,k)*Tr%t(i,j,k))*h1(k))) * Idt
             enddo
           endif
         endif
