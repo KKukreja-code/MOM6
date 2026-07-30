@@ -32,6 +32,7 @@ subroutine advection_scheme_variance_production(G, GV, Tr, h_diag, h, dt_trans, 
 
   call thickness_weighted_variance_advection(G, GV, Tr, h_diag, h, dt_trans, Idt, asvp)
   call thickness_weighted_variance_flux_divergence(G, Gv, Tr, uhtr, vhtr, Idt, asvp)
+  call check_variance_underflow(G, GV, Tr, Idt, asvp)
 
 end subroutine advection_scheme_variance_production
 
@@ -104,6 +105,34 @@ subroutine thickness_weighted_variance_flux_divergence(G, Gv, Tr, uhtr, vhtr, Id
   enddo ; enddo; enddo
 
 end subroutine thickness_weighted_variance_flux_divergence
+
+subroutine check_variance_underflow(G, GV, Tr, Idt, asvp)
+
+  type(ocean_grid_type),                        intent(in) :: G     !< Ocean grid structure
+  type(verticalGrid_type),                      intent(in) :: GV    !< Ocean vertical grid structure
+  type(tracer_type),                            intent(in) :: Tr    !< Pointer to the tracer regsitry
+  real,                                         intent(in) :: Idt       !< Inverse time interval [T-1 ~> s-1]
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)), intent(inout) :: asvp  !< Advection scheme variance production
+                                                                    !! diagnostic [CU2 H T-1 ~> conc2 m s-1 or
+                                                                    !!             conc2 kg m-2 s-1]
+  ! Local variables
+  integer :: is, ie, js, je, nz  !< Grid cell centre and layer indexes
+  integer :: i, j, k             !< Counters
+  real :: var_uf                 !< A tiny underflow value for tracer variance tendency diagnostics
+                                 !! [CU2 H T-1 ~> conc2 m s-1 or conc2 kg m-2 s-1]
+
+  is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
+  if (Tr%conc_underflow == 0) then
+    var_uf = 1e-23 * GV%H_subroundoff * Idt
+  else
+    var_uf = Tr%conc_underflow**2 * GV%H_subroundoff * Idt
+  endif
+
+  do k=1,nz ; do j=js,je ; do i=is,ie
+      if (abs(asvp(i,j,k)) < var_uf) asvp(i, j, k) = 0.0
+  enddo ; enddo; enddo
+
+end subroutine
 
 !< Subroutine to calculate upwind values in zonal direction
 subroutine zonal_upwind_values(G, GV, Tr, uhtr, x_upwind)
