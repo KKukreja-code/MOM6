@@ -1036,7 +1036,7 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
 
         ! variance production due to remapping diagnostics.
         if ((Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0)) then
-          remap_variance_production = remap_variance_production * Idt
+          rvp = rvp * Idt
           ! local
           if (Tr%id_remap_variance_production > 0) call post_data(Tr%id_remap_variance_production, rvp, CS%diag)
           ! depth integrated
