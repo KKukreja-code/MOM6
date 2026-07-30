@@ -981,10 +981,10 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
         h2(:) = h_new(i,j,:)
         if (present(PCM_cell)) then
           PCM(:) = PCM_cell(i,j,:)
-          call remapping_core_h(CS%remapCS, nz, h1, Tr%t(i,j,:), nz, h2, tr_column, &
-                                PCM_cell=PCM, col_var_production=remap_variance_production(i,j,:), compute_variance=compute_variance)
+          call remapping_core_h(CS%remapCS, nz, h1, Tr%t(i,j,:), nz, h2, tr_column, PCM_cell=PCM, &
+                                col_var_production=remap_variance_production(i,j,:), compute_variance=compute_variance)
         else
-          call remapping_core_h(CS%remapCS, nz, h1, Tr%t(i,j,:), nz, h2, tr_column, & 
+          call remapping_core_h(CS%remapCS, nz, h1, Tr%t(i,j,:), nz, h2, tr_column, &
                                 col_var_production=remap_variance_production(i,j,:), compute_variance=compute_variance)
         endif
 
