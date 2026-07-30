@@ -1024,6 +1024,9 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
         if (Tr%id_remap_cont > 0) then
           call post_data(Tr%id_remap_cont, work_cont, CS%diag)
         endif
+        if ((Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0)) then
+          remap_variance_production = remap_variance_production * Idt
+        endif
         if (Tr%id_remap_variance_production > 0) then
           call post_data(Tr%id_remap_variance_production, remap_variance_production, CS%diag)
         endif
