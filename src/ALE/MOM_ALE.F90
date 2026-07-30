@@ -929,21 +929,17 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)) :: work_cont ! The rate of change of cell-integrated tracer
                                                        ! content [Conc H T-1 ~> Conc m s-1 or Conc kg m-2 s-1] or
                                                        ! cell thickness [H T-1 ~> m s-1 or kg m-2 s-1]
-  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)) :: work_contsq ! The rate of change of cell-integrated tracer content
-                                                       ! squared [Conc H T-1 ~> Conc m s-1 or Conc kg m-2 s-1] or
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)) :: remap_variance_production ! Variance production from the remap step
+                                                       ! [Conc2 H T-1 ~> Conc2 m s-1 or Conc2 kg m-2 s-1] or
                                                        ! cell thickness [H T-1 ~> m s-1 or kg m-2 s-1]
-  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)) :: remap_variance_production ! Variance production from the remap step 
+  real, dimension(SZI_(G),SZJ_(G))          :: remap_variance_production_2d ! Depth-integrated variance production
+                                                       ! from the remap step
                                                        ! [Conc2 H T-1 ~> Conc2 m s-1 or Conc2 kg m-2 s-1] or
-                                                       ! cell thickness [H T-1 ~> m s-1 or kg m-2 s-1]  
-  real, dimension(SZI_(G),SZJ_(G))          :: remap_variance_production_2d ! Depth-integrated variance production from the remap step
-                                                       ! [Conc2 H T-1 ~> Conc2 m s-1 or Conc2 kg m-2 s-1] or
-                                                       ! cell thickness [H T-1 ~> m s-1 or kg m-2 s-1]                                                 
+                                                       ! cell thickness [H T-1 ~> m s-1 or kg m-2 s-1]
   real, dimension(SZI_(G),SZJ_(G))          :: work_2d ! The rate of change of column-integrated tracer
                                                        ! content [Conc H T-1 ~> Conc m s-1 or Conc kg m-2 s-1]
-  real, dimension(SZI_(G),SZJ_(G))          :: work_2dsq ! The rate of change of column-integrated tracer
-                                                          ! content squared
-                                                          ! [Conc2 H T-1 ~> Conc2 m s-1 or Conc2 kg m-2 s-1]
   logical :: PCM(GV%ke) ! If true, do PCM remapping from a cell.
+  logical :: compute_variance ! If true, compute the variance production due to the ALE remapping.
   real :: Idt           ! The inverse of the timestep [T-1 ~> s-1]
   real :: h1(GV%ke)     ! A column of source grid layer thicknesses [H ~> m or kg m-2]
   real :: h2(GV%ke)     ! A column of target grid layer thicknesses [H ~> m or kg m-2]
@@ -964,13 +960,19 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
     Idt = 1.0/dt
     work_conc(:,:,:) = 0.0
     work_cont(:,:,:) = 0.0
-    work_contsq(:,:,:) = 0.0
+  endif
+
+  if ( (Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0) .and. (present(dt))) then
+      compute_variance = .true.
+      remap_variance_production(:,:,:) = 0.0
+    else
+      compute_variance = .false.
   endif
 
   ! Remap all registered tracers, including temperature and salinity.
   if (ntr>0) then
     if (show_call_tree) call callTree_waypoint("remapping tracers (ALE_remap_tracers)")
-    !$OMP parallel do default(shared) private(h1,h2,tr_column,Tr,PCM,work_conc,work_cont,work_contsq,remap_variance_production, remap_variance_production_2d, work_2d,work_2dsq)
+    !$OMP parallel do default(shared) private(h1,h2,tr_column,Tr,PCM,work_conc,work_cont,remap_variance_production, remap_variance_production_2d, work_2d)
     do m=1,ntr ! For each tracer
       Tr => Reg%Tr(m)
       do j = G%jsc,G%jec ; do i = G%isc,G%iec ; if (G%mask2dT(i,j)>0.) then
@@ -979,9 +981,12 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
         h2(:) = h_new(i,j,:)
         if (present(PCM_cell)) then
           PCM(:) = PCM_cell(i,j,:)
-          call remapping_core_h(CS%remapCS, nz, h1, Tr%t(i,j,:), nz, h2, tr_column, remap_variance_production(i,j,:), PCM_cell=PCM)
+          rvp(:) = remap_variance_production(i,j,:)
+          call remapping_core_h(CS%remapCS, nz, h1, Tr%t(i,j,:), nz, h2, tr_column, &
+                                PCM_cell=PCM, col_variance_production=rvp, compute_variance=compute_variance)
         else
-          call remapping_core_h(CS%remapCS, nz, h1, Tr%t(i,j,:), nz, h2, tr_column, remap_variance_production(i,j,:))
+          call remapping_core_h(CS%remapCS, nz, h1, Tr%t(i,j,:), nz, h2, tr_column, & 
+                                col_variance_production=rvp, compute_variance=conmpute_variance)
         endif
 
         ! Possibly underflow any very tiny tracer concentrations to 0.  Note that this is not conservative!
@@ -1001,14 +1006,6 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
               work_cont(i,j,k) = (tr_column(k)*h2(k) - Tr%t(i,j,k)*h1(k)) * Idt
             enddo
           endif
-          ! if (Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0) then
-          !   do k=1,GV%ke
-          !     ! work_conrsq(i,j,k) = 
-              
-          !     ! version that is ok when considering vertical integral, comment out and replace
-          !     ! work_contsq(i,j,k) = (((tr_column(k)*tr_column(k))*h2(k)) - ((Tr%t(i,j,k)*Tr%t(i,j,k))*h1(k))) * Idt
-          !   enddo
-          ! endif
         endif
 
         ! update tracer concentration
