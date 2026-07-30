@@ -1023,12 +1023,6 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
         if (Tr%id_remap_cont > 0) then
           call post_data(Tr%id_remap_cont, work_cont, CS%diag)
         endif
-        if ((Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0)) then
-          remap_variance_production = remap_variance_production * Idt
-        endif
-        if (Tr%id_remap_variance_production > 0) then
-          call post_data(Tr%id_remap_variance_production, rvp, CS%diag)
-        endif
 
         if (Tr%id_remap_cont_2d > 0) then
           do j = G%jsc,G%jec ; do i = G%isc,G%iec
@@ -1039,14 +1033,22 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
           enddo ; enddo
           call post_data(Tr%id_remap_cont_2d, work_2d, CS%diag)
         endif
-        if (Tr%id_remap_variance_production_2d > 0) then
-          do j = G%jsc,G%jec ; do i = G%isc,G%iec
-            rvp_2d(i,j) = 0.0
-            do k=1,GV%ke
-              rvp_2d(i,j) = rvp_2d(i,j) + rvp(i,j,k)
-            enddo
-          enddo ; enddo
-          call post_data(Tr%id_remap_variance_production_2d, rvp_2d, CS%diag)
+
+        ! variance production due to remapping diagnostics.
+        if ((Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0)) then
+          remap_variance_production = remap_variance_production * Idt
+          ! local
+          if (Tr%id_remap_variance_production > 0) call post_data(Tr%id_remap_variance_production, rvp, CS%diag)
+          ! depth integrated
+          if (Tr%id_remap_variance_production_2d > 0) then
+            do j = G%jsc,G%jec ; do i = G%isc,G%iec
+              rvp_2d(i,j) = 0.0
+              do k=1,GV%ke
+                rvp_2d(i,j) = rvp_2d(i,j) + rvp(i,j,k)
+              enddo
+            enddo ; enddo
+            call post_data(Tr%id_remap_variance_production_2d, rvp_2d, CS%diag)
+          endif
         endif
       endif
     enddo ! m=1,ntr
