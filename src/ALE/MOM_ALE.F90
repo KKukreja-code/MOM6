@@ -929,10 +929,10 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)) :: work_cont ! The rate of change of cell-integrated tracer
                                                        ! content [Conc H T-1 ~> Conc m s-1 or Conc kg m-2 s-1] or
                                                        ! cell thickness [H T-1 ~> m s-1 or kg m-2 s-1]
-  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)) :: remap_variance_production ! Variance production from the remap step
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)) :: rvp ! Variance production from the remap step
                                                        ! [Conc2 H T-1 ~> Conc2 m s-1 or Conc2 kg m-2 s-1] or
                                                        ! cell thickness [H T-1 ~> m s-1 or kg m-2 s-1]
-  real, dimension(SZI_(G),SZJ_(G))          :: remap_variance_production_2d ! Depth-integrated variance production
+  real, dimension(SZI_(G),SZJ_(G))          :: rvp_2d ! Depth-integrated variance production
                                                        ! from the remap step
                                                        ! [Conc2 H T-1 ~> Conc2 m s-1 or Conc2 kg m-2 s-1] or
                                                        ! cell thickness [H T-1 ~> m s-1 or kg m-2 s-1]
@@ -964,7 +964,7 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
 
   if ( (Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0) .and. (present(dt))) then
       compute_variance = .true.
-      remap_variance_production(:,:,:) = 0.0
+      rvp(:,:,:) = 0.0
     else
       compute_variance = .false.
   endif
@@ -972,7 +972,7 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
   ! Remap all registered tracers, including temperature and salinity.
   if (ntr>0) then
     if (show_call_tree) call callTree_waypoint("remapping tracers (ALE_remap_tracers)")
-    !$OMP parallel do default(shared) private(h1,h2,tr_column,Tr,PCM,work_conc,work_cont,remap_variance_production, remap_variance_production_2d, work_2d)
+    !$OMP parallel do default(shared) private(h1,h2,tr_column,Tr,PCM,work_conc,work_cont,rvp,rvp_2d, work_2d)
     do m=1,ntr ! For each tracer
       Tr => Reg%Tr(m)
       do j = G%jsc,G%jec ; do i = G%isc,G%iec ; if (G%mask2dT(i,j)>0.) then
@@ -981,11 +981,11 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
         h2(:) = h_new(i,j,:)
         if (present(PCM_cell)) then
           PCM(:) = PCM_cell(i,j,:)
-          call remapping_core_h(CS%remapCS, nz, h1, Tr%t(i,j,:), nz, h2, tr_column, &
-                                PCM_cell=PCM, col_var_production=remap_variance_production(i,j,:), compute_variance=compute_variance)
+          call remapping_core_h(CS%remapCS, nz, h1, Tr%t(i,j,:), nz, h2, tr_column, PCM_cell=PCM, &
+                                col_var_production=rvp(i,j,:), compute_variance=compute_variance)
         else
-          call remapping_core_h(CS%remapCS, nz, h1, Tr%t(i,j,:), nz, h2, tr_column, & 
-                                col_var_production=remap_variance_production(i,j,:), compute_variance=compute_variance)
+          call remapping_core_h(CS%remapCS, nz, h1, Tr%t(i,j,:), nz, h2, tr_column, &
+                                col_var_production=rvp(i,j,:), compute_variance=compute_variance)
         endif
 
         ! Possibly underflow any very tiny tracer concentrations to 0.  Note that this is not conservative!
@@ -1028,7 +1028,7 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
           remap_variance_production = remap_variance_production * Idt
         endif
         if (Tr%id_remap_variance_production > 0) then
-          call post_data(Tr%id_remap_variance_production, remap_variance_production, CS%diag)
+          call post_data(Tr%id_remap_variance_production, rvp, CS%diag)
         endif
 
         if (Tr%id_remap_cont_2d > 0) then
@@ -1042,12 +1042,12 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
         endif
         if (Tr%id_remap_variance_production_2d > 0) then
           do j = G%jsc,G%jec ; do i = G%isc,G%iec
-            remap_variance_production_2d(i,j) = 0.0
+            rvp_2d(i,j) = 0.0
             do k=1,GV%ke
-              remap_variance_production_2d(i,j) = remap_variance_production_2d(i,j) + remap_variance_production(i,j,k)
+              rvp_2d(i,j) = rvp_2d(i,j) + rvp(i,j,k)
             enddo
           enddo ; enddo
-          call post_data(Tr%id_remap_variance_production_2d, remap_variance_production_2d, CS%diag)
+          call post_data(Tr%id_remap_variance_production_2d, rvp_2d, CS%diag)
         endif
       endif
     enddo ! m=1,ntr
