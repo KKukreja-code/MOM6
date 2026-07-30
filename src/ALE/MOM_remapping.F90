@@ -234,7 +234,7 @@ end subroutine extract_member_remapping_CS
 !!
 !! \todo Remove h_neglect argument by moving into remapping_CS
 !! \todo Remove PCM_cell argument by adding new method in Recon1D class
-subroutine remapping_core_h(CS, n0, h0, u0, n1, h1, u1, net_err, PCM_cell)
+subroutine remapping_core_h(CS, n0, h0, u0, n1, h1, u1, col_var_production, net_err, PCM_cell)
   type(remapping_CS),  intent(in)  :: CS !< Remapping control structure
   integer,             intent(in)  :: n0 !< Number of cells on source grid
   real, dimension(n0), intent(in)  :: h0 !< Cell widths on source grid [H]
@@ -242,6 +242,7 @@ subroutine remapping_core_h(CS, n0, h0, u0, n1, h1, u1, net_err, PCM_cell)
   integer,             intent(in)  :: n1 !< Number of cells on target grid
   real, dimension(n1), intent(in)  :: h1 !< Cell widths on target grid [H]
   real, dimension(n1), intent(out) :: u1 !< Cell averages on target grid [A]
+  real, dimension(n1), optional, intent(inout) :: col_var_production !< Remap variance production for a column
   real, optional,      intent(out) :: net_err !< Error in total column [A H]
   logical, dimension(n0), optional, intent(in) :: PCM_cell !< If present, use PCM remapping for
                                          !! cells in the source grid where this is true.
@@ -264,6 +265,20 @@ subroutine remapping_core_h(CS, n0, h0, u0, n1, h1, u1, net_err, PCM_cell)
   real :: uh_err       ! A bound on the error in the sum of u*h, as estimated by the remapping code [A H]
   integer :: iMethod   ! An integer indicating the integration method used
 
+  if (Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0) then
+    if (n0 >= n1) then
+      do i1 = 1, n1
+        col_var_production(i1) = -1 * h0(i1) * (u0(i1) ** 2)
+      enddo
+    else ! if n1 > n0
+      do i1 = 1, n0
+        col_var_production(i1) = -1 * h0(i1) * (u0(i1) ** 2)
+      enddo
+      do i1 = n0+1, n1
+        col_var_production(i1) = 0.0
+      enddo
+    endif
+  endif
   ! Calculate sub-layer thicknesses and indices connecting sub-layers to source and target grids
   ! Sets: h_sub, h0_eff, isrc_start, isrc_end, isrc_max, isub_src, itgt_start, itgt_end
   call intersect_src_tgt_grids(n0, h0, n1, h1, h_sub, h0_eff, &
@@ -288,9 +303,9 @@ subroutine remapping_core_h(CS, n0, h0, u0, n1, h1, u1, net_err, PCM_cell)
     ! Loop over each target cell summing the integrals from sub-cells within the target cell.
     ! Uses: itgt_start, itgt_end, h1, h_sub, uh_sub, u_sub
     ! Sets: u1, uh_err
-    call remap_sub_to_tgt_grid(n0, n1, h1, h_sub, u_sub, uh_sub, itgt_start, itgt_end, &
+    call remap_sub_to_tgt_grid(n0, n1, h1, h_sub, u_sub, uh_sub, itgt_start, itgt_end, isrc_start, isrc_end, &
                                CS%force_bounds_in_target, CS%offset_tgt_summation, &
-                               CS%better_force_bounds_in_target, u1, uh_err)
+                               CS%better_force_bounds_in_target, u1, uh_err, col_var_production)
 
     ! Include the error remapping from source to sub-cells in the estimate of total remapping error
     uh_err = uh_err + u02_err
@@ -323,8 +338,8 @@ subroutine remapping_core_h(CS, n0, h0, u0, n1, h1, u1, net_err, PCM_cell)
     ! Loop over each target cell summing the integrals from sub-cells within the target cell.
     ! Uses: itgt_start, itgt_end, h1, h_sub, uh_sub, u_sub
     ! Sets: u1, uh_err
-    call remap_sub_to_tgt_grid_om4(n0, n1, h1, h_sub, u_sub, uh_sub, itgt_start, itgt_end, &
-                               CS%force_bounds_in_target, u1, uh_err)
+    call remap_sub_to_tgt_grid_om4(n0, n1, h1, h_sub, u_sub, uh_sub, itgt_start, itgt_end, isrc_start, isrc_end, &
+                               CS%force_bounds_in_target, u1, uh_err, col_var_production)
     ! Include the error remapping from source to sub-cells in the estimate of total remapping error
     uh_err = uh_err + u02_err
 
@@ -399,7 +414,7 @@ subroutine remapping_core_w( CS, n0, h0, u0, n1, dx, u1)
   ! Uses: itgt_start, itgt_end, h1, h_sub, uh_sub, u_sub
   ! Sets: u1, uh_err
   call remap_sub_to_tgt_grid_om4(n0, n1, h1, h_sub, u_sub, uh_sub, itgt_start, itgt_end, &
-                             CS%force_bounds_in_target, u1, uh_err)
+                             CS%force_bounds_in_target, u1, uh_err, col_var_production)
 
   ! Include the error remapping from source to sub-cells in the estimate of total remapping error
   uh_err = uh_err + u02_err
@@ -1104,7 +1119,7 @@ end subroutine remap_src_to_sub_grid
 !> Remaps column of n0+n1+1 values usub on sub-grid h_sub to targets on grid h1
 !! using the OM4-era algorithm
 subroutine remap_sub_to_tgt_grid_om4(n0, n1, h1, h_sub, u_sub, uh_sub, &
-                                 itgt_start, itgt_end, force_bounds_in_target, u1, uh_err)
+                                 itgt_start, itgt_end, isrc_start, isrc_end, force_bounds_in_target, u1, uh_err, col_var_production)
   integer, intent(in)  :: n0     !< Number of cells in source grid
   integer, intent(in)  :: n1     !< Number of cells in target grid
   real,    intent(in)  :: h1(n1) !< Target grid widths (size n1) [H]
@@ -1113,9 +1128,12 @@ subroutine remap_sub_to_tgt_grid_om4(n0, n1, h1, h_sub, u_sub, uh_sub, &
   real,    intent(in)  :: uh_sub(n0+n1+1) !< Sub-cell cell integrals (size n1) [A H]
   integer, intent(in)  :: itgt_start(n1) !< Index of first sub-cell within each target cell
   integer, intent(in)  :: itgt_end(n1) !< Index of last sub-cell within each target cell
+  integer, intent(in), dimension(n0) :: isrc_start ! Index of first sub-cell within each source cell
+  integer, intent(in), dimension(n0) :: isrc_end ! Index of last sub-cell within each source cell
   logical, intent(in)  :: force_bounds_in_target !< Force sub-cell values to be bounded
   real,    intent(out) :: u1(n1) !< Target cell averages (size n1) [A]
   real,    intent(out) :: uh_err !< Estimate of bound on error in sum of u*h [A H]
+  real,    intent(inout), optional :: col_var_production(n1) !< Cell-by-cell variance production due to remap in this column
   ! Local variables
   integer :: i1 ! tgt loop index
   integer :: i_sub ! index to sub-layer
@@ -1163,12 +1181,28 @@ subroutine remap_sub_to_tgt_grid_om4(n0, n1, h1, h_sub, u_sub, uh_sub, &
     endif
   enddo
 
+  if (Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0) then
+    do i1 = 1, n1
+      col_var_production(i1) = col_var_production(i1) + (h1(i1) * (u1(i1) ** 2)) 
+      do j2 = isrc_start(i1), isrc_end(i1)
+        if (j2 < itgt_start(i1) .or. j2 > itgt_end(i1)) then
+          col_var_production(i1) = col_var_production(i1) + (h_sub(j2) * (u_sub(j2)**2))
+        endif
+      enddo
+      do j2 = itgt_start(i1), itgt_end(i1)
+        if (j2 < isrc_start(i1) .or. j2 > isrc_end(i1)) then
+          col_var_production(i1) = col_var_production(i1) - (h_sub(j2) * (u_sub(j2)**2))
+        endif
+      enddo
+    enddo
+  endif
+
 end subroutine remap_sub_to_tgt_grid_om4
 
 !> Remaps column of n0+n1+1 values usub on sub-grid h_sub to targets on grid h1
 subroutine remap_sub_to_tgt_grid(n0, n1, h1, h_sub, u_sub, uh_sub, &
-                                 itgt_start, itgt_end, force_bounds_in_target, &
-                                 better_force_bounds_in_target, offset_summation, u1, uh_err)
+                                 itgt_start, itgt_end, isrc_start, isrc_end, force_bounds_in_target, &
+                                 better_force_bounds_in_target, offset_summation, u1, uh_err, col_var_production)
   integer, intent(in)  :: n0     !< Number of cells in source grid
   integer, intent(in)  :: n1     !< Number of cells in target grid
   real,    intent(in)  :: h1(n1) !< Target grid widths (size n1) [H]
@@ -1177,11 +1211,14 @@ subroutine remap_sub_to_tgt_grid(n0, n1, h1, h_sub, u_sub, uh_sub, &
   real,    intent(in)  :: uh_sub(n0+n1+1) !< Sub-cell cell integrals (size n1) [A H]
   integer, intent(in)  :: itgt_start(n1) !< Index of first sub-cell within each target cell
   integer, intent(in)  :: itgt_end(n1) !< Index of last sub-cell within each target cell
+  integer, intent(in), dimension(n0) :: isrc_start ! Index of first sub-cell within each source cell
+  integer, intent(in), dimension(n0) :: isrc_end ! Index of last sub-cell within each source cell
   logical, intent(in)  :: force_bounds_in_target !< Force sub-cell values to be bounded
   logical, intent(in)  :: better_force_bounds_in_target !< Force sub-cell values to be bounded
   logical, intent(in)  :: offset_summation !< Offset values in summation for accuracy
   real,    intent(out) :: u1(n1) !< Target cell averages (size n1) [A]
   real,    intent(out) :: uh_err !< Estimate of bound on error in sum of u*h [A H]
+  real,    intent(inout), optional :: col_var_production(n1) !< Cell-by-cell variance production due to remap in this column
   ! Local variables
   integer :: i1 ! tgt loop index
   integer :: i_sub ! index to sub-layer
@@ -1243,6 +1280,22 @@ subroutine remap_sub_to_tgt_grid(n0, n1, h1, h_sub, u_sub, uh_sub, &
       u1(i1) = u_sub(itgt_start(i1))
     endif
   enddo
+
+  if (Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0) then
+    do i1 = 1, n1
+      col_var_production(i1) = col_var_production(i1) + (h1(i1) * (u1(i1) ** 2)) 
+      do j2 = isrc_start(i1), isrc_end(i1)
+        if (j2 < itgt_start(i1) .or. j2 > itgt_end(i1)) then
+          col_var_production(i1) = col_var_production(i1) + (h_sub(j2) * (u_sub(j2)**2))
+        endif
+      enddo
+      do j2 = itgt_start(i1), itgt_end(i1)
+        if (j2 < isrc_start(i1) .or. j2 > isrc_end(i1)) then
+          col_var_production(i1) = col_var_production(i1) - (h_sub(j2) * (u_sub(j2)**2))
+        endif
+      enddo
+    enddo
+  endif
 
 end subroutine remap_sub_to_tgt_grid
 
