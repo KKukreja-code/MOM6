@@ -962,19 +962,18 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
     work_cont(:,:,:) = 0.0
   endif
 
-  if ( (Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0) .and. (present(dt))) then
-      compute_variance = .true.
-      rvp(:,:,:) = 0.0
-    else
-      compute_variance = .false.
-  endif
-
   ! Remap all registered tracers, including temperature and salinity.
   if (ntr>0) then
     if (show_call_tree) call callTree_waypoint("remapping tracers (ALE_remap_tracers)")
     !$OMP parallel do default(shared) private(h1,h2,tr_column,Tr,PCM,work_conc,work_cont,rvp,rvp_2d, work_2d)
     do m=1,ntr ! For each tracer
       Tr => Reg%Tr(m)
+      if ( (Tr%id_remap_variance_production > 0 .or. Tr%id_remap_variance_production_2d > 0) .and. (present(dt))) then
+          compute_variance = .true.
+          rvp(:,:,:) = 0.0
+        else
+          compute_variance = .false.
+      endif
       do j = G%jsc,G%jec ; do i = G%isc,G%iec ; if (G%mask2dT(i,j)>0.) then
         ! Build the start and final grids
         h1(:) = h_old(i,j,:)
