@@ -292,7 +292,7 @@ subroutine remapping_core_h(CS, n0, h0, u0, n1, h1, u1, net_err, PCM_cell, col_v
     ! Loop over each target cell summing the integrals from sub-cells within the target cell.
     ! Uses: itgt_start, itgt_end, h1, h_sub, uh_sub, u_sub
     ! Sets: u1, uh_err
-    call remap_sub_to_tgt_grid(n0, n1, h1, h_sub, u_sub, uh_sub, itgt_start, itgt_end, isrc_start, isrc_end, &
+    call remap_sub_to_tgt_grid(n0, n1, h1, h_sub, u_sub, uh_sub, itgt_start, itgt_end, &
                                CS%force_bounds_in_target, CS%offset_tgt_summation, &
                                CS%better_force_bounds_in_target, u1, uh_err)
 
@@ -327,8 +327,8 @@ subroutine remapping_core_h(CS, n0, h0, u0, n1, h1, u1, net_err, PCM_cell, col_v
     ! Loop over each target cell summing the integrals from sub-cells within the target cell.
     ! Uses: itgt_start, itgt_end, h1, h_sub, uh_sub, u_sub
     ! Sets: u1, uh_err
-    call remap_sub_to_tgt_grid_om4(n0, n1, h1, h_sub, u_sub, uh_sub, itgt_start, itgt_end, isrc_start, isrc_end, &
-                               CS%force_bounds_in_target, u1, uh_err, col_var_production)
+    call remap_sub_to_tgt_grid_om4(n0, n1, h1, h_sub, u_sub, uh_sub, itgt_start, itgt_end, &
+                               CS%force_bounds_in_target, u1, uh_err)
     ! Include the error remapping from source to sub-cells in the estimate of total remapping error
     uh_err = uh_err + u02_err
 
@@ -1114,7 +1114,7 @@ end subroutine remap_src_to_sub_grid
 !> Remaps column of n0+n1+1 values usub on sub-grid h_sub to targets on grid h1
 !! using the OM4-era algorithm
 subroutine remap_sub_to_tgt_grid_om4(n0, n1, h1, h_sub, u_sub, uh_sub, &
-                                 itgt_start, itgt_end, isrc_start, isrc_end, force_bounds_in_target, u1, uh_err)
+                                 itgt_start, itgt_end, force_bounds_in_target, u1, uh_err)
   integer, intent(in)  :: n0     !< Number of cells in source grid
   integer, intent(in)  :: n1     !< Number of cells in target grid
   real,    intent(in)  :: h1(n1) !< Target grid widths (size n1) [H]
@@ -1123,8 +1123,6 @@ subroutine remap_sub_to_tgt_grid_om4(n0, n1, h1, h_sub, u_sub, uh_sub, &
   real,    intent(in)  :: uh_sub(n0+n1+1) !< Sub-cell cell integrals (size n1) [A H]
   integer, intent(in)  :: itgt_start(n1) !< Index of first sub-cell within each target cell
   integer, intent(in)  :: itgt_end(n1) !< Index of last sub-cell within each target cell
-  integer, intent(in), dimension(n0) :: isrc_start ! Index of first sub-cell within each source cell
-  integer, intent(in), dimension(n0) :: isrc_end ! Index of last sub-cell within each source cell
   logical, intent(in)  :: force_bounds_in_target !< Force sub-cell values to be bounded
   real,    intent(out) :: u1(n1) !< Target cell averages (size n1) [A]
   real,    intent(out) :: uh_err !< Estimate of bound on error in sum of u*h [A H]
@@ -1179,7 +1177,7 @@ end subroutine remap_sub_to_tgt_grid_om4
 
 !> Remaps column of n0+n1+1 values usub on sub-grid h_sub to targets on grid h1
 subroutine remap_sub_to_tgt_grid(n0, n1, h1, h_sub, u_sub, uh_sub, &
-                                 itgt_start, itgt_end, isrc_start, isrc_end, force_bounds_in_target, &
+                                 itgt_start, itgt_end, force_bounds_in_target, &
                                  better_force_bounds_in_target, offset_summation, u1, uh_err)
   integer, intent(in)  :: n0     !< Number of cells in source grid
   integer, intent(in)  :: n1     !< Number of cells in target grid
@@ -1189,8 +1187,6 @@ subroutine remap_sub_to_tgt_grid(n0, n1, h1, h_sub, u_sub, uh_sub, &
   real,    intent(in)  :: uh_sub(n0+n1+1) !< Sub-cell cell integrals (size n1) [A H]
   integer, intent(in)  :: itgt_start(n1) !< Index of first sub-cell within each target cell
   integer, intent(in)  :: itgt_end(n1) !< Index of last sub-cell within each target cell
-  integer, intent(in), dimension(n0) :: isrc_start ! Index of first sub-cell within each source cell
-  integer, intent(in), dimension(n0) :: isrc_end ! Index of last sub-cell within each source cell
   logical, intent(in)  :: force_bounds_in_target !< Force sub-cell values to be bounded
   logical, intent(in)  :: better_force_bounds_in_target !< Force sub-cell values to be bounded
   logical, intent(in)  :: offset_summation !< Offset values in summation for accuracy
