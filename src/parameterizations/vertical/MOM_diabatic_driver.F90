@@ -1344,8 +1344,6 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
   real :: g_Rho0       ! G_Earth/Rho0 [H T-2 R-1 ~> m4 s-2 kg-1 or m s-2]
   real :: H_to_pres    ! A conversion factor from thicknesses to pressure [R L2 T-2 H-1 ~> Pa m-1 or Pa m2 kg-1]
   real :: alt_H_to_pres! A conversion factor from thicknesses to pressure w/ alternative scaling [R Z T-2 ~> Pa m-1]
-  real :: del_Tsq_above! Change in T^2 due to diabatic diffusion in cell above interface
-  real :: del_Tsq_below! Change in T^2 due to diabatic diffusion in cell below interface
   logical :: nonBous   ! True if not using the Boussinesq approximation
 
   integer, dimension(2) :: EOSdom ! The i-computational domain for the equation of state
