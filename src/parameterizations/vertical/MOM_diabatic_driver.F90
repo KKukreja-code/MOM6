@@ -216,7 +216,7 @@ type, public :: diabatic_CS ; private
   integer :: id_diabatic_diff_heat_tend_2d  = -1
   integer :: id_diabatic_diff_salt_tend_2d  = -1
   integer :: id_diabatic_diff_h = -1
-  integer :: id_diabatic_diff_var_prod = -1
+  integer :: id_T_diabatic_diff_var_prod = -1
 
   integer :: id_boundary_forcing_h       = -1
   integer :: id_boundary_forcing_h_tendency   = -1
@@ -1279,7 +1279,7 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     v_h,    &     ! Meridional velocities interpolated to thickness points [L T-1 ~> m s-1]
     temp_diag, &  ! Diagnostic array of previous temperatures [C ~> degC]
     saln_diag, &  ! Diagnostic array of previous salinity [S ~> ppt]
-    cell_var_prod ! Averaged variance production in cell due to diabatic diffusion
+    T_cell_var_prod ! Averaged variance production in cell due to diabatic diffusion
 
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)+1) :: &
     ent_s,    & ! The diffusive coupling across interfaces within one time step for
@@ -1301,9 +1301,9 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     Sdif_flx, & ! diffusive diapycnal salt flux across interfaces [S H T-1 ~> ppt m s-1 or ppt kg m-2 s-1]
     N2_salt, &  !< Salinity contribution to squared buoyancy frequency at interfaces [T-2 ~> s-2]
     N2_temp, &   !< Temperature contribution to squared buoyancy frequency at interfaces [T-2 ~> s-2]
-    int_var_prod_down, & ! Variance production due to diabatic diffusion at an interface, when sequentially updating &
+    T_int_var_prod_down, & ! Variance production due to diabatic diffusion at an interface, when sequentially updating &
                          ! tracer content from top to bottom
-    int_var_prod_up      ! Variance production due to diabatic diffusion at an interface, when sequentially updating &
+    T_int_var_prod_up      ! Variance production due to diabatic diffusion at an interface, when sequentially updating &
                          ! tracer content from bottom to top                
 
   real, dimension(SZI_(G),SZJ_(G)) :: &
@@ -1640,7 +1640,7 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     if (associated(tv%S) .and. associated(tv%salt_deficit)) &
       call adjust_salt(h, tv, G, GV, CS%diabatic_aux_CSp)
 
-    if (CS%diabatic_diff_tendency_diag .or. CS%id_diabatic_diff_var_prod > 0) then
+    if (CS%diabatic_diff_tendency_diag .or. CS%id_T_diabatic_diff_var_prod > 0) then
       do k=1,nz ; do j=js,je ; do i=is,ie
         temp_diag(i,j,k) = tv%T(i,j,k)
         saln_diag(i,j,k) = tv%S(i,j,k)
@@ -1715,7 +1715,7 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
   if (CS%id_eb_s > 0) call post_data(CS%id_eb_s, ent_s(:,:,2:nz+1), CS%diag)
 
   Idt = 1.0 / dt
-  if (CS%id_Tdif > 0 .or. CS%id_diabatic_diff_var_prod>0) then
+  if (CS%id_Tdif > 0 .or. CS%id_T_diabatic_diff_var_prod>0) then
     do j=js,je ; do i=is,ie
       Tdif_flx(i,j,1) = 0.0 ; Tdif_flx(i,j,nz+1) = 0.0
     enddo ; enddo
@@ -1735,25 +1735,25 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     enddo ; enddo ; enddo
     if (CS%id_Sdif > 0) call post_data(CS%id_Sdif, Sdif_flx, CS%diag)
   endif
-  if (CS%id_diabatic_diff_var_prod > 0) then
+  if (CS%id_T_diabatic_diff_var_prod > 0) then
     do j=js,je ; do i=is,ie
-      int_var_prod_down(i,j,1) = 0.0 ; int_var_prod_down(i,j,nz+1) = 0.0
-      int_var_prod_up(i,j,1) = 0.0 ; int_var_prod_up(i,j,nz+1) = 0.0
+      T_int_var_prod_down(i,j,1) = 0.0 ; T_int_var_prod_down(i,j,nz+1) = 0.0
+      T_int_var_prod_up(i,j,1) = 0.0 ; T_int_var_prod_up(i,j,nz+1) = 0.0
     enddo ; enddo
     do K=2,nz ; do j=js,je ; do i=is,ie
-      int_var_prod_down(i,j,K) = ((dt*Tdif_flx(i,j,K))**2) * ((1/h(i,j,K-1))+(1/h(i,j,K))) + &
+      T_int_var_prod_down(i,j,K) = ((dt*Tdif_flx(i,j,K))**2) * ((1/h(i,j,K-1))+(1/h(i,j,K))) + &
       2 * (dt*Tdif_flx(i,j,K)) * (temp_diag(i,j,K)-temp_diag(i,j,K-1)-(dt*Tdif_flx(i,j,K-1)/h(i,j,K-1)))
-      int_var_prod_down(i,j,K) = Idt * int_var_prod_down(i,j,K)
-      int_var_prod_up(i,j,K) = ((dt*Tdif_flx(i,j,K))**2) * ((1/h(i,j,K-1))+(1/h(i,j,K))) + &
+      T_int_var_prod_down(i,j,K) = Idt * T_int_var_prod_down(i,j,K)
+      T_int_var_prod_up(i,j,K) = ((dt*Tdif_flx(i,j,K))**2) * ((1/h(i,j,K-1))+(1/h(i,j,K))) + &
       2 * (dt*Tdif_flx(i,j,K)) * (temp_diag(i,j,K)-temp_diag(i,j,K-1)-(dt*Tdif_flx(i,j,K+1)/h(i,j,K)))
-      int_var_prod_up(i,j,K) = Idt * int_var_prod_down(i,j,K)
+      T_int_var_prod_up(i,j,K) = Idt * T_int_var_prod_down(i,j,K)
     enddo ; enddo ; enddo
     do k=1,nz ; do j=js,je ; do i=is,ie
-      cell_var_prod(i,j,k) = 0.5 * ((int_var_prod_down(i,j,k)+int_var_prod_down(i,j,k+1))/2 + &
-                             (int_var_prod_up(i,j,k)+int_var_prod_up(i,j,k+1))/2)
+      T_cell_var_prod(i,j,k) = 0.5 * ((T_int_var_prod_down(i,j,k)+T_int_var_prod_down(i,j,k+1))/2 + &
+                             (T_int_var_prod_up(i,j,k)+T_int_var_prod_up(i,j,k+1))/2)
     enddo ; enddo ; enddo
-    if (CS%id_diabatic_diff_var_prod>0) call & 
-    post_data(CS%id_diabatic_diff_var_prod, cell_var_prod, CS%diag)
+    if (CS%id_T_diabatic_diff_var_prod>0) call & 
+    post_data(CS%id_T_diabatic_diff_var_prod, T_cell_var_prod, CS%diag)
   endif
 
   if (CS%Use_KdWork_diag .or. CS%Use_N2_diag) then
@@ -3418,7 +3418,7 @@ subroutine diabatic_driver_init(Time, G, GV, US, param_file, useALEalgorithm, di
 
   ! Register all available diagnostics for this module.
   thickness_units = get_thickness_units(GV)
-  CS%id_diabatic_diff_var_prod = register_diag_field('ocean_model', 'diabatic_diff_var_prod', & 
+  CS%id_T_diabatic_diff_var_prod = register_diag_field('ocean_model', 'diabatic_diff_var_prod', & 
     diag%axesTL, Time, 'Variance production due to diabatic diffusion at an interface', & 
     'degC2 m s-1', conversion=(US%C_to_degC**2)*GV%H_to_MKS*US%s_to_T)
   CS%id_ea_t = register_diag_field('ocean_model', 'ea_t', diag%axesTL, Time, &
