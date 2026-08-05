@@ -3418,8 +3418,8 @@ subroutine diabatic_driver_init(Time, G, GV, US, param_file, useALEalgorithm, di
 
   ! Register all available diagnostics for this module.
   thickness_units = get_thickness_units(GV)
-  CS%id_T_diabatic_diff_var_prod = register_diag_field('ocean_model', 'diabatic_diff_var_prod', & 
-    diag%axesTL, Time, 'Variance production due to diabatic diffusion at an interface', & 
+  CS%id_T_diabatic_diff_var_prod = register_diag_field('ocean_model', 'T_diabatic_diff_var_prod', & 
+    diag%axesTL, Time, 'Variance production in temperature due to diabatic diffusion at an interface', & 
     'degC2 m s-1', conversion=(US%C_to_degC**2)*GV%H_to_MKS*US%s_to_T)
   CS%id_ea_t = register_diag_field('ocean_model', 'ea_t', diag%axesTL, Time, &
       'Layer (heat) entrainment from above per timestep', 'm', conversion=GV%H_to_m)
