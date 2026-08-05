@@ -1304,7 +1304,7 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     T_int_var_prod_down, & ! Variance production due to diabatic diffusion at an interface, when sequentially updating &
                          ! tracer content from top to bottom
     T_int_var_prod_up      ! Variance production due to diabatic diffusion at an interface, when sequentially updating &
-                         ! tracer content from bottom to top                
+                         ! tracer content from bottom to top
 
   real, dimension(SZI_(G),SZJ_(G)) :: &
     U_star, &    ! The friction velocity [Z T-1 ~> m s-1].
@@ -1752,7 +1752,7 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
       T_cell_var_prod(i,j,k) = 0.5 * ((T_int_var_prod_down(i,j,k)+T_int_var_prod_down(i,j,k+1))/2 + &
                              (T_int_var_prod_up(i,j,k)+T_int_var_prod_up(i,j,k+1))/2)
     enddo ; enddo ; enddo
-    if (CS%id_T_diabatic_diff_var_prod>0) call & 
+    if (CS%id_T_diabatic_diff_var_prod>0) call &
     post_data(CS%id_T_diabatic_diff_var_prod, T_cell_var_prod, CS%diag)
   endif
 
@@ -3418,8 +3418,8 @@ subroutine diabatic_driver_init(Time, G, GV, US, param_file, useALEalgorithm, di
 
   ! Register all available diagnostics for this module.
   thickness_units = get_thickness_units(GV)
-  CS%id_T_diabatic_diff_var_prod = register_diag_field('ocean_model', 'T_diabatic_diff_var_prod', & 
-    diag%axesTL, Time, 'Variance production in temperature due to diabatic diffusion at an interface', & 
+  CS%id_T_diabatic_diff_var_prod = register_diag_field('ocean_model', 'T_diabatic_diff_var_prod', &
+    diag%axesTL, Time, 'Variance production in temperature due to diabatic diffusion at an interface', &
     'degC2 m s-1', conversion=(US%C_to_degC**2)*GV%H_to_MKS*US%s_to_T)
   CS%id_ea_t = register_diag_field('ocean_model', 'ea_t', diag%axesTL, Time, &
       'Layer (heat) entrainment from above per timestep', 'm', conversion=GV%H_to_m)
