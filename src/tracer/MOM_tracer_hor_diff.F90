@@ -188,6 +188,13 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
   real :: Res_Fn     ! The local value of the resolution function [nondim].
   real :: Rd_dx      ! The local value of deformation radius over grid-spacing [nondim].
   real :: normalize  ! normalization used for diagnostic Kh_h [nondim]; diffusivity averaged to h-points.
+  real :: var_uf     ! Horizontal diffusion variance underflow threshold [Conc2 m s-1]
+  real :: conc_right, conc_left, conc_up, conc_down ! Tracer concentrations in adjacent cells,
+                                            ! for variance production calculation [Conc]
+  real :: h_right, h_left, h_up, h_down  ! Thicknesses of adjacent cells, for variance production calculation [m]
+  real :: dtr_hereright, dtr_hereleft, dtr_hereup, dtr_heredown, dtr_right, dtr_rightdown, dtr_rightup, &
+  dtr_left, dtr_leftdown, dtr_leftup, dtr_upleft, dtr_upright, dtr_up, dtr_downleft, dtr_downright, dtr_down ! Changes in
+  ! tracer content at neighbouring interfaces due to diffusion, for variance production calculation [Conc]
 
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
 
@@ -543,9 +550,17 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
   else    ! following if not using neutral diffusion, but instead along-surface diffusion
 
     if (CS%show_call_tree) call callTree_waypoint("Calculating horizontal diffusion (tracer_hordiff)")
+    do m=1,ntr
+      Reg%Tr(m)%horint_hordiff_var_prod(:,:,:) = 0.0
+      Reg%Tr(m)%verint_hordiff_var_prod(:,:,:) = 0.0
+      Reg%Tr(m)%cell_hordiff_var_prod(:,:,:) = 0.0
+    enddo
     do itt=1,num_itts
       call do_group_pass(CS%pass_t, G%Domain, clock=id_clock_pass)
-      !$OMP parallel do default(shared) private(scale,Coef_y,Coef_x,Ihdxdy,dTr)
+      !$OMP parallel do default(shared) private(scale,Coef_y,Coef_x,Ihdxdy,dTr,conc_down,conc_up,conc_left,&
+      !$OMP conc_right,h_up,h_down,h_left,h_right,dtr_hereup,dtr_heredown,dtr_hereleft,dtr_hereright,dtr_down,&
+      !$OMP dtr_downleft,dtr_downright,dtr_up,dtr_upright,dtr_upleft,dtr_left,dtr_leftup,dtr_leftdown,dtr_right,&
+      !$OMP dtr_rightup,dtr_rightdown)
       do k=1,nz
         scale = I_numitts
         if (CS%Diffuse_ML_interior) then
@@ -596,6 +611,100 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
             Reg%Tr(m)%df2d_y(i,J) = Reg%Tr(m)%df2d_y(i,J) + Coef_y(i,J,1) &
                 * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k)) * Idt
           enddo ; enddo ; endif
+          do j=js,je ; do I=is-1,ie
+            if (I == is-1) then
+              conc_right = Reg%Tr(m)%t(i+1,j,k)
+              conc_left = Reg%Tr(m)%t(i,j,k)
+              h_right = h(i+1,j,k)
+              h_left = h(i,j,k)
+              dtr_hereright = Ihdxdy(i+1,j) * Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k))
+              dtr_hereleft = 0
+              dtr_right = Ihdxdy(i+1,j) * Coef_x(I+1,j,1) * (Reg%Tr(m)%t(i+1,j,k) - Reg%Tr(m)%t(i+2,j,k))
+              dtr_rightup = Ihdxdy(i+1,j) * Coef_y(i+1,J,1) * (Reg%Tr(m)%t(i+1,j,k) - Reg%Tr(m)%t(i+1,j+1,k))
+              dtr_rightdown = Ihdxdy(i+1,j) * Coef_y(i+1,J-1,1) * (Reg%Tr(m)%t(i+1,j-1,k) - Reg%Tr(m)%t(i+1,j,k))
+              dtr_left = 0
+              dtr_leftup = 0
+              dtr_leftdown = 0
+            elseif (I == ie) then
+              conc_right = Reg%Tr(m)%t(i+1,j,k)
+              conc_left = Reg%Tr(m)%t(i,j,k)
+              h_right = h(i+1,j,k)
+              h_left = h(i,j,k)
+              dtr_hereright = 0
+              dtr_hereleft = Ihdxdy(i,j) * Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k))
+              dtr_right = 0
+              dtr_rightup = 0
+              dtr_rightdown = 0
+              dtr_left = Ihdxdy(i,j) * Coef_x(I-1,j,1) * (Reg%Tr(m)%t(i-1,j,k) - Reg%Tr(m)%t(i,j,k))
+              dtr_leftup = Ihdxdy(i,j) * Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k))
+              dtr_leftdown = Ihdxdy(i,j) * Coef_y(i,J-1,1) * (Reg%Tr(m)%t(i,j-1,k) - Reg%Tr(m)%t(i,j,k))
+            else
+              conc_right = Reg%Tr(m)%t(i+1,j,k)
+              conc_left = Reg%Tr(m)%t(i,j,k)
+              h_right = h(i+1,j,k)
+              h_left = h(i,j,k)
+              dtr_hereright = Ihdxdy(i+1,j) * Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k))
+              dtr_hereleft = Ihdxdy(i,j) * Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k))
+              dtr_right = Ihdxdy(i+1,j) * Coef_x(I+1,j,1) * (Reg%Tr(m)%t(i+1,j,k) - Reg%Tr(m)%t(i+2,j,k))
+              dtr_rightup = Ihdxdy(i+1,j) * Coef_y(i+1,J,1) * (Reg%Tr(m)%t(i+1,j,k) - Reg%Tr(m)%t(i+1,j+1,k))
+              dtr_rightdown = Ihdxdy(i+1,j) * Coef_y(i+1,J-1,1) * (Reg%Tr(m)%t(i+1,j-1,k) - Reg%Tr(m)%t(i+1,j,k))
+              dtr_left = Ihdxdy(i,j) * Coef_x(I-1,j,1) * (Reg%Tr(m)%t(i-1,j,k) - Reg%Tr(m)%t(i,j,k))
+              dtr_leftup = Ihdxdy(i,j) * Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k))
+              dtr_leftdown = Ihdxdy(i,j) * Coef_y(i,J-1,1) * (Reg%Tr(m)%t(i,j-1,k) - Reg%Tr(m)%t(i,j,k))
+            endif
+            Reg%Tr(m)%horint_hordiff_var_prod(I,j,k)=Reg%Tr(m)%horint_hordiff_var_prod(I,j,k)+ &
+            ((2*conc_right*h_right*dtr_hereright) - (h_right*dtr_hereright*dtr_right) + &
+            (h_right*dtr_hereright*dtr_rightdown) - (h_right*dtr_hereright*dtr_rightup) &
+            + (h_right*(dtr_hereright**2)) - (2*conc_left*h_left*dtr_hereleft) - (h_left*dtr_hereleft*dtr_left) - &
+            (h_left*dtr_hereleft*dtr_leftdown) + (h_left*dtr_hereleft*dtr_leftup) + (h_left*(dtr_hereleft**2)))*Idt
+          enddo; enddo
+          do i=is,ie ; do J=js-1,je
+            if (J == js-1) then
+              conc_up = Reg%Tr(m)%t(i,j+1,k)
+              conc_down = Reg%Tr(m)%t(i,j,k)
+              h_up = h(i,j+1,k)
+              h_down = h(i,j,k)
+              dtr_hereup = Ihdxdy(i,j+1) * Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k))
+              dtr_heredown = 0
+              dtr_up = Ihdxdy(i,j+1) * Coef_y(i,J+1,1) * (Reg%Tr(m)%t(i,j+1,k) - Reg%Tr(m)%t(i,j+2,k))
+              dtr_upleft = Ihdxdy(i,j+1) * Coef_x(I-1,j+1,1) * (Reg%Tr(m)%t(i-1,j+1,k) - Reg%Tr(m)%t(i,j+1,k))
+              dtr_upright = Ihdxdy(i,j+1) * Coef_x(I,j+1,1) * (Reg%Tr(m)%t(i,j+1,k) - Reg%Tr(m)%t(i+1,j+1,k))
+              dtr_down = 0
+              dtr_downleft = 0
+              dtr_downright = 0
+            elseif (J == je) then
+              conc_up = Reg%Tr(m)%t(i,j+1,k)
+              conc_down = Reg%Tr(m)%t(i,j,k)
+              h_up = h(i,j,k)
+              h_down = h(i,j,k)
+              dtr_hereup = 0
+              dtr_heredown = Ihdxdy(i,j) * Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k))
+              dtr_up = 0
+              dtr_upleft = 0
+              dtr_upright = 0
+              dtr_down = Ihdxdy(i,j) * Coef_y(i,J-1,1) * (Reg%Tr(m)%t(i,j-1,k) - Reg%Tr(m)%t(i,j,k))
+              dtr_downleft = Ihdxdy(i,j) * Coef_x(I-1,j,1) * (Reg%Tr(m)%t(i-1,j,k) - Reg%Tr(m)%t(i,j,k))
+              dtr_downright = Ihdxdy(i,j) * Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k))
+            else
+              conc_up = Reg%Tr(m)%t(i,j+1,k)
+              conc_down = Reg%Tr(m)%t(i,j,k)
+              h_up = h(i,j+1,k)
+              h_down = h(i,j,k)
+              dtr_hereup = Ihdxdy(i,j+1) * Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k))
+              dtr_heredown = Ihdxdy(i,j) * Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k))
+              dtr_up = Ihdxdy(i,j+1) * Coef_y(i,J+1,1) * (Reg%Tr(m)%t(i,j+1,k) - Reg%Tr(m)%t(i,j+2,k))
+              dtr_upleft = Ihdxdy(i,j+1) * Coef_x(I-1,j+1,1) * (Reg%Tr(m)%t(i-1,j+1,k) - Reg%Tr(m)%t(i,j+1,k))
+              dtr_upright = Ihdxdy(i,j+1) * Coef_x(I,j+1,1) * (Reg%Tr(m)%t(i,j+1,k) - Reg%Tr(m)%t(i+1,j+1,k))
+              dtr_down = Ihdxdy(i,j) * Coef_y(i,J-1,1) * (Reg%Tr(m)%t(i,j-1,k) - Reg%Tr(m)%t(i,j,k))
+              dtr_downleft = Ihdxdy(i,j) * Coef_x(I-1,j,1) * (Reg%Tr(m)%t(i-1,j,k) - Reg%Tr(m)%t(i,j,k))
+              dtr_downright = Ihdxdy(i,j) * Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k))
+            endif
+            Reg%Tr(m)%verint_hordiff_var_prod(I,j,k)=Reg%Tr(m)%verint_hordiff_var_prod(I,j,k)+&
+            ((2*conc_up*h_up*dtr_hereup) + (h_up*dtr_hereup*dtr_upleft) - &
+            (h_up*dtr_hereup*dtr_upright) - (h_up*dtr_hereup*dtr_up) + &
+            (h_up*(dtr_hereup**2)) - (2*conc_down*h_down*dtr_heredown) - (h_down*dtr_downleft*dtr_heredown) + &
+            (h_down*dtr_heredown*dtr_downright) - (h_down*dtr_down*dtr_heredown) + (h_down*(dtr_heredown)**2))*Idt
+          enddo ; enddo
           do j=js,je ; do i=is,ie
             Reg%Tr(m)%t(i,j,k) = Reg%Tr(m)%t(i,j,k) + dTr(i,j)
           enddo ; enddo
@@ -613,6 +722,28 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
 
     enddo ! End of "while" loop.
 
+    do m=1,ntr ; do j=js,je ; do i=is,ie ; do k=1,nz
+      Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = (Reg%Tr(m)%horint_hordiff_var_prod(i-1,j,k) + &
+      Reg%Tr(m)%horint_hordiff_var_prod(i,j,k) + Reg%Tr(m)%verint_hordiff_var_prod(i,j-1,k) + &
+      Reg%Tr(m)%verint_hordiff_var_prod(i,j,k))/4
+    enddo ; enddo ; enddo ; enddo
+
+    do m=1,ntr
+      if (Reg%Tr(m)%conc_underflow == 0) then
+        var_uf = 1e-23 * GV%H_subroundoff * Idt
+      else
+        var_uf = Reg%Tr(m)%conc_underflow**2 * GV%H_subroundoff * Idt
+      endif
+
+      do k=1,nz ; do j=js,je ; do i=is,ie
+        if (abs(Reg%Tr(m)%cell_hordiff_var_prod(i,j,k)) < var_uf) Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = 0.0
+      enddo ; enddo; enddo
+    enddo
+
+    do m=1,ntr
+      if (Reg%Tr(m)%id_hordiff_variance_production > 0) call post_data(Reg%Tr(m)%id_hordiff_variance_production, &
+      Reg%Tr(m)%cell_hordiff_var_prod, CS%diag)
+    enddo
   endif   ! endif for CS%use_neutral_diffusion
   call cpu_clock_end(id_clock_diffuse)
 

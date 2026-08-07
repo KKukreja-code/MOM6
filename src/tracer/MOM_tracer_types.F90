@@ -57,6 +57,15 @@ type, public :: tracer_type
 !  real, dimension(:,:,:), pointer :: diff_conc_xy   => NULL() !< convergence of lateral diffusive tracer fluxes
 !                                                              !! expressed as a change in concentration
 !                                                              !! [CU T-1 ~> conc s-1]
+  real, dimension(:,:,:), pointer :: horint_hordiff_var_prod => NULL() ! Variance production due to horizontal
+                                                                       ! diffusion at zonal interfaces
+                                                                       ! [Conc2 m s-1]
+  real, dimension(:,:,:), pointer :: verint_hordiff_var_prod => NULL() ! Variance production due to horizontal
+                                                                       ! diffusion at meridional interfaces
+                                                                       ! [Conc2 m s-1]
+  real, dimension(:,:,:), pointer :: cell_hordiff_var_prod => NULL() ! Average variance production due to
+                                                                     ! horizontal diffusion in a cell
+                                                                     ! from its 4 interfaces [Conc2 m s-1]
   real, dimension(:,:,:), pointer :: t_prev         => NULL() !< tracer concentration array at a previous
                                                               !! timestep used for diagnostics [CU ~> conc]
   real, dimension(:,:,:), pointer :: Trxh_prev      => NULL() !< layer integrated tracer concentration array
@@ -122,6 +131,7 @@ type, public :: tracer_type
   integer :: id_net_surfflux = -1, id_NLT_tendency = -1, id_NLT_budget = -1
   integer :: id_advection_scheme_variance_production = -1
   integer :: id_remap_variance_production = -1, id_remap_variance_production_2d = -1
+  integer :: id_hordiff_variance_production = -1
   !>@}
 end type tracer_type
 
