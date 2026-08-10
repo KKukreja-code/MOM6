@@ -613,7 +613,18 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
             dtr_top = Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k))
             dtr_bottom = Coef_y(i,J-1,1) * (Reg%Tr(m)%t(i,j-1,k) - Reg%Tr(m)%t(i,j,k))
             do i = is,ie ; do j = js,je
-              Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) +
+              Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) + &
+              h(i,j,k) * Idt * (2*Reg%Tr(m)%t(i,j,k)*dtr_left - dtr_left*dtr_right - dtr_left*dtr_top + &
+              dtr_left*dtr_bottom + dtr_left*dtr_left)
+              Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) + &
+              h(i,j,k) * Idt * (-2*Reg%Tr(m)%t(i,j,k)*dtr_right - dtr_right*dtr_left - dtr_right*dtr_bottom + &
+              dtr_right*dtr_top + dtr_right*dtr_right)
+              Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) + &
+              h(i,j,k) * Idt * (2*Reg%Tr(m)%t(i,j,k)*dtr_bottom + dtr_bottom*dtr_left - dtr_bottom*dtr_right - &
+              dtr_bottom*dtr_top + dtr_bottom*dtr_bottom)
+              Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) + &
+              h(i,j,k) * Idt * (-2*Reg%Tr(m)%t(i,j,k)*dtr_top - dtr_top*dtr_left + dtr_top*dtr_right - &
+              dtr_top*dtr_bottom + dtr_top*dtr_top)
             enddo ; enddo
           do j=js,je ; do i=is,ie
             Reg%Tr(m)%t(i,j,k) = Reg%Tr(m)%t(i,j,k) + dTr(i,j)
