@@ -189,12 +189,8 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
   real :: Rd_dx      ! The local value of deformation radius over grid-spacing [nondim].
   real :: normalize  ! normalization used for diagnostic Kh_h [nondim]; diffusivity averaged to h-points.
   real :: var_uf     ! Horizontal diffusion variance underflow threshold [Conc2 m s-1]
-  real :: conc_right, conc_left, conc_up, conc_down ! Tracer concentrations in adjacent cells,
-                                            ! for variance production calculation [Conc]
-  real :: h_right, h_left, h_up, h_down  ! Thicknesses of adjacent cells, for variance production calculation [m]
-  real :: dtr_hereright, dtr_hereleft, dtr_hereup, dtr_heredown, dtr_right, dtr_rightdown, dtr_rightup, &
-  dtr_left, dtr_leftdown, dtr_leftup, dtr_upleft, dtr_upright, dtr_up, dtr_downleft, dtr_downright, dtr_down ! Changes in
-  ! tracer content at neighbouring interfaces due to diffusion, for variance production calculation [Conc]
+  real :: dtr_left, dtr_right, dtr_top, dtr_bottom ! Changes in tracer content at neighbouring interfaces
+  ! due to diffusion, for variance production calculation [Conc]
 
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
 
@@ -551,16 +547,16 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
 
     if (CS%show_call_tree) call callTree_waypoint("Calculating horizontal diffusion (tracer_hordiff)")
     do m=1,ntr
-      Reg%Tr(m)%horint_hordiff_var_prod(:,:,:) = 0.0
-      Reg%Tr(m)%verint_hordiff_var_prod(:,:,:) = 0.0
+      Reg%Tr(m)%leftint_hordiff_var_prod(:,:,:) = 0.0
+      Reg%Tr(m)%rightint_hordiff_var_prod(:,:,:) = 0.0
+      Reg%Tr(m)%topint_hordiff_var_prod(:,:,:) = 0.0
+      Reg%Tr(m)%bottomint_hordiff_var_prod(:,:,:) = 0.0
       Reg%Tr(m)%cell_hordiff_var_prod(:,:,:) = 0.0
     enddo
     do itt=1,num_itts
       call do_group_pass(CS%pass_t, G%Domain, clock=id_clock_pass)
-      !$OMP parallel do default(shared) private(scale,Coef_y,Coef_x,Ihdxdy,dTr,conc_down,conc_up,conc_left,&
-      !$OMP conc_right,h_up,h_down,h_left,h_right,dtr_hereup,dtr_heredown,dtr_hereleft,dtr_hereright,dtr_down,&
-      !$OMP dtr_downleft,dtr_downright,dtr_up,dtr_upright,dtr_upleft,dtr_left,dtr_leftup,dtr_leftdown,dtr_right,&
-      !$OMP dtr_rightup,dtr_rightdown)
+      !$OMP parallel do default(shared) private(scale,Coef_y,Coef_x,Ihdxdy,dTr,dtr_left,
+      !$OMP dtr_right, dtr_top, dtr_bottom
       do k=1,nz
         scale = I_numitts
         if (CS%Diffuse_ML_interior) then
@@ -611,9 +607,14 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
             Reg%Tr(m)%df2d_y(i,J) = Reg%Tr(m)%df2d_y(i,J) + Coef_y(i,J,1) &
                 * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k)) * Idt
           enddo ; enddo ; endif
-          ! if idhordiffvardiag > 0:
-          ! for all i,j: Reg%Tr(m)%horint_hordiff_var_prod(I,j,k)=Reg%Tr(m)%horint_hordiff_var_prod(I,j,k)+ TODO
-          ! for all i,j: Reg%Tr(m)%verint_hordiff_var_prod(I,j,k)=Reg%Tr(m)%verint_hordiff_var_prod(I,j,k)+ TODO
+          if Reg%Tr(m)%id_hordiff_variance_production > 0:
+            dtr_left = Coef_x(I-1,j,1) * (Reg%Tr(m)%t(i-1,j,k) - Reg%Tr(m)%t(i,j,k))
+            dtr_right = Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k))
+            dtr_top = Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k))
+            dtr_bottom = Coef_y(i,J-1,1) * (Reg%Tr(m)%t(i,j-1,k) - Reg%Tr(m)%t(i,j,k))
+            do i = is,ie ; do j = js,je
+              Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) +
+            enddo ; enddo
           do j=js,je ; do i=is,ie
             Reg%Tr(m)%t(i,j,k) = Reg%Tr(m)%t(i,j,k) + dTr(i,j)
           enddo ; enddo

@@ -445,9 +445,13 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
     if (Tr%id_hbd_dfx > 0) call safe_alloc_ptr(Tr%hbd_dfx,IsdB,IedB,jsd,jed,nz)
     if (Tr%id_hbd_dfy > 0) call safe_alloc_ptr(Tr%hbd_dfy,isd,ied,JsdB,JedB,nz)
     if (Tr%id_hordiff_variance_production > 0) call &
-    safe_alloc_ptr(Tr%horint_hordiff_var_prod,is-1,ie,js,je,nz)
+    safe_alloc_ptr(Tr%leftint_hordiff_var_prod,is,ie,js,je,nz)
     if (Tr%id_hordiff_variance_production > 0) call &
-    safe_alloc_ptr(Tr%verint_hordiff_var_prod,is,ie,js-1,je,nz)
+    safe_alloc_ptr(Tr%rightint_hordiff_var_prod,is,ie,js,je,nz)
+    if (Tr%id_hordiff_variance_production > 0) call &
+    safe_alloc_ptr(Tr%topint_hordiff_var_prod,is,ie,js,je,nz)
+    if (Tr%id_hordiff_variance_production > 0) call &
+    safe_alloc_ptr(Tr%bottomint_hordiff_var_prod,is,ie,js,je,nz)
     if (Tr%id_hordiff_variance_production > 0) call &
     safe_alloc_ptr(Tr%cell_hordiff_var_prod,is,ie,js,je,nz)
 
