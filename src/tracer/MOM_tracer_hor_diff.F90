@@ -607,7 +607,7 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
             Reg%Tr(m)%df2d_y(i,J) = Reg%Tr(m)%df2d_y(i,J) + Coef_y(i,J,1) &
                 * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k)) * Idt
           enddo ; enddo ; endif
-          if Reg%Tr(m)%id_hordiff_variance_production > 0:
+          if (Reg%Tr(m)%id_hordiff_variance_production > 0) then
             dtr_left = Coef_x(I-1,j,1) * (Reg%Tr(m)%t(i-1,j,k) - Reg%Tr(m)%t(i,j,k))
             dtr_right = Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k))
             dtr_top = Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k))
@@ -626,6 +626,7 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
               h(i,j,k) * Idt * (-2*Reg%Tr(m)%t(i,j,k)*dtr_top - dtr_top*dtr_left + dtr_top*dtr_right - &
               dtr_top*dtr_bottom + dtr_top*dtr_top)
             enddo ; enddo
+          endif
           do j=js,je ; do i=is,ie
             Reg%Tr(m)%t(i,j,k) = Reg%Tr(m)%t(i,j,k) + dTr(i,j)
           enddo ; enddo

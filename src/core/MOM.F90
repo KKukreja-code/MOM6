@@ -1514,6 +1514,9 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
   if (CS%debug) call MOM_tracer_chksum("Post-advect ", CS%tracer_Reg, G)
   call tracer_hordiff(h, CS%t_dyn_rel_adv, CS%MEKE, CS%VarMix, CS%visc, G, GV, US, &
                       CS%tracer_diff_CSp, CS%tracer_Reg, CS%tv)
+  ! TODO: update halo, size 1 with four-interface variances
+  ! TODO: calculate cell-variance production from interface variance
+  ! TODO: post variance production as diagnostic
   if (CS%debug) call MOM_tracer_chksum("Post-diffuse ", CS%tracer_Reg, G)
   if (showCallTree) call callTree_waypoint("finished tracer advection/diffusion (step_MOM)")
   if (associated(CS%OBC)) then
