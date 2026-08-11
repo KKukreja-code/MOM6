@@ -1480,6 +1480,7 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
   integer :: halo_sz ! The size of a halo where data must be valid.
   logical :: x_first ! If true, advect tracers first in the x-direction, then y.
   logical :: showCallTree
+  integer :: i, j, k, m ! Loop counters
   showCallTree = callTree_showQuery()
 
   if (CS%debug) then
@@ -1514,9 +1515,8 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
   if (CS%debug) call MOM_tracer_chksum("Post-advect ", CS%tracer_Reg, G)
   call tracer_hordiff(h, CS%t_dyn_rel_adv, CS%MEKE, CS%VarMix, CS%visc, G, GV, US, &
                       CS%tracer_diff_CSp, CS%tracer_Reg, CS%tv)
-  ! TODO: update halo, size 1 with four-interface variances
-  if (CS%tracer_Reg%id_hordiff_variance_production > 0) then
-    do m=1,CS%tracer_Reg%ntr
+  do m=1,CS%tracer_Reg%ntr
+    if (CS%tracer_Reg%Tr(m)%id_hordiff_variance_production > 0) then
       call pass_var(CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod, G%Domain, halo=1)
       call pass_var(CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod, G%Domain, halo=1)
       call pass_var(CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod, G%Domain, halo=1)
@@ -1537,9 +1537,10 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
         CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod = CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod + &
         (CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod / 2)
       enddo ; enddo ; enddo
-      call post_data(Reg%Tr(m)%id_hordiff_variance_production, Reg%Tr(m)%cell_hordiff_var_prod, CS%diag)
-    enddo
-  endif
+      call post_data(CS%tracer_Reg%Tr(m)%id_hordiff_variance_production, &
+      CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod, CS%diag)
+    endif
+  enddo
   if (CS%debug) call MOM_tracer_chksum("Post-diffuse ", CS%tracer_Reg, G)
   if (showCallTree) call callTree_waypoint("finished tracer advection/diffusion (step_MOM)")
   if (associated(CS%OBC)) then
