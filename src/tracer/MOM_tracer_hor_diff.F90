@@ -655,11 +655,6 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
         if (abs(Reg%Tr(m)%cell_hordiff_var_prod(i,j,k)) < var_uf) Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = 0.0
       enddo ; enddo; enddo
     enddo
-
-    ! do m=1,ntr
-    !   if (Reg%Tr(m)%id_hordiff_variance_production > 0) call post_data(Reg%Tr(m)%id_hordiff_variance_production, &
-    !   Reg%Tr(m)%cell_hordiff_var_prod, CS%diag)
-    ! enddo
   endif   ! endif for CS%use_neutral_diffusion
   call cpu_clock_end(id_clock_diffuse)
 

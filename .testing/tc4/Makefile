@@ -1,0 +1,64 @@
+# This file is part of MOM6, the Modular Ocean Model version 6.
+# See the LICENSE file for licensing information.
+# SPDX-License-Identifier: Apache-2.0
+
+FC = mpifort
+LD = 
+FCFLAGS = -g -O2 -I/opt/homebrew/Cellar/netcdf-fortran/4.6.4/include
+LDFLAGS =  -L/opt/homebrew/Cellar/netcdf/4.10.1/lib -L/opt/homebrew/Cellar/netcdf-fortran/4.6.4/lib
+LIBS = -lnetcdff -lnetcdf 
+
+LAUNCHER ?=
+
+OUT = ocean_hgrid.nc topog.nc temp_salt_ic.nc sponge.nc
+
+# Since each program generates two outputs, we can only use one to track the
+# creation.  The second rule is used to indirectly re-invoke the first rule.
+#
+# Reference:
+# https://www.gnu.org/software/automake/manual/html_node/Multiple-Outputs.html
+
+# Program output
+all: ocean_hgrid.nc temp_salt_ic.nc
+executables: gen_data gen_grid
+
+ocean_hgrid.nc: gen_grid
+	$(LAUNCHER) ./gen_grid
+topog.nc: ocean_hgrid.nc
+	@test -f $@ || rm -f $^
+	@test -f $@ || $(MAKE) $^
+
+temp_salt_ic.nc: gen_data ocean_hgrid.nc
+	$(LAUNCHER) ./gen_data
+sponge.nc: temp_salt_ic.nc
+	@test -f $@ || rm -f $^
+	@test -f $@ || $(MAKE) $^
+
+
+# Programs
+
+gen_grid: gen_grid.F90
+	$(FC) $(FCFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+gen_data: gen_data.F90
+	$(FC) $(FCFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+
+# Support
+
+.PHONY: clean
+clean:
+	rm -rf $(OUT) gen_grid gen_data
+
+.PHONY: distclean
+distclean: clean
+	rm -f config.log
+	rm -f config.status
+	rm -f Makefile
+
+.PHONY: ac-clean
+ac-clean: distclean
+	rm -f aclocal.m4
+	rm -rf autom4te.cache
+	rm -f configure
+	rm -f configure~
