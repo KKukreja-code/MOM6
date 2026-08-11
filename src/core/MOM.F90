@@ -1515,8 +1515,31 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
   call tracer_hordiff(h, CS%t_dyn_rel_adv, CS%MEKE, CS%VarMix, CS%visc, G, GV, US, &
                       CS%tracer_diff_CSp, CS%tracer_Reg, CS%tv)
   ! TODO: update halo, size 1 with four-interface variances
-  ! TODO: calculate cell-variance production from interface variance
-  ! TODO: post variance production as diagnostic
+  if (CS%tracer_Reg%id_hordiff_variance_production > 0) then
+    do m=1,CS%tracer_Reg%ntr
+      call pass_var(CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod, G%Domain, halo=1)
+      call pass_var(CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod, G%Domain, halo=1)
+      call pass_var(CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod, G%Domain, halo=1)
+      call pass_var(CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod, G%Domain, halo=1)
+      do k=1,GV%ke ; do i=G%isc,G%iec+1 ; do j=G%jsc,G%jec
+        CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod = CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod + &
+        (CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod / 2)
+      enddo ; enddo ; enddo
+      do k=1,GV%ke ; do i=G%isc-1,G%iec ; do j=G%jsc,G%jec
+        CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod = CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod + &
+        (CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod / 2)
+      enddo ; enddo ; enddo
+      do k=1,GV%ke ; do i=G%isc,G%iec ; do j=G%jsc,G%jec+1
+        CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod = CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod + &
+        (CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod / 2)
+      enddo ; enddo ; enddo
+      do k=1,GV%ke ; do i=G%isc,G%iec ; do j=G%jsc-1,G%jec
+        CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod = CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod + &
+        (CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod / 2)
+      enddo ; enddo ; enddo
+      call post_data(Reg%Tr(m)%id_hordiff_variance_production, Reg%Tr(m)%cell_hordiff_var_prod, CS%diag)
+    enddo
+  endif
   if (CS%debug) call MOM_tracer_chksum("Post-diffuse ", CS%tracer_Reg, G)
   if (showCallTree) call callTree_waypoint("finished tracer advection/diffusion (step_MOM)")
   if (associated(CS%OBC)) then
