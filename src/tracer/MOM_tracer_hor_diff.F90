@@ -644,17 +644,17 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
 
     enddo ! End of "while" loop.
 
-    do m=1,ntr
-      if (Reg%Tr(m)%conc_underflow == 0) then
-        var_uf = 1e-23 * GV%H_subroundoff * Idt
-      else
-        var_uf = Reg%Tr(m)%conc_underflow**2 * GV%H_subroundoff * Idt
-      endif
+    ! do m=1,ntr
+    !   if (Reg%Tr(m)%conc_underflow == 0) then
+    !     var_uf = 1e-23 * GV%H_subroundoff * Idt
+    !   else
+    !     var_uf = Reg%Tr(m)%conc_underflow**2 * GV%H_subroundoff * Idt
+    !   endif
 
-      do k=1,nz ; do j=js,je ; do i=is,ie
-        if (abs(Reg%Tr(m)%cell_hordiff_var_prod(i,j,k)) < var_uf) Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = 0.0
-      enddo ; enddo; enddo
-    enddo
+    !   do k=1,nz ; do j=js,je ; do i=is,ie
+    !     if (abs(Reg%Tr(m)%cell_hordiff_var_prod(i,j,k)) < var_uf) Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = 0.0
+    !   enddo ; enddo; enddo
+    ! enddo
   endif   ! endif for CS%use_neutral_diffusion
   call cpu_clock_end(id_clock_diffuse)
 
