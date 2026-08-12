@@ -171,7 +171,6 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
     Coef_y, &     ! The coefficients relating meridional tracer differences to time-integrated
                   ! fluxes, in [L2 ~> m2] for some schemes and [H L2 ~> m3 or kg] for others.
     Kh_v          ! Tracer mixing coefficient at u-points [L2 T-1 ~> m2 s-1].
-  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)) :: left_int_var
 
   real :: khdt_max ! The local limiting value of khdt_x or khdt_y [L2 ~> m2].
   real :: Coef_min ! The local limiting value of Coef_x or Coef_y, in [L2 ~> m2] for some
@@ -189,7 +188,6 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
   real :: Res_Fn     ! The local value of the resolution function [nondim].
   real :: Rd_dx      ! The local value of deformation radius over grid-spacing [nondim].
   real :: normalize  ! normalization used for diagnostic Kh_h [nondim]; diffusivity averaged to h-points.
-  real :: var_uf     ! Horizontal diffusion variance underflow threshold [Conc2 m s-1]
   real :: dtr_left, dtr_right, dtr_top, dtr_bottom ! Changes in tracer content at neighbouring interfaces
   ! due to diffusion, for variance production calculation [Conc]
 
@@ -556,7 +554,6 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
   else    ! following if not using neutral diffusion, but instead along-surface diffusion
 
     if (CS%show_call_tree) call callTree_waypoint("Calculating horizontal diffusion (tracer_hordiff)")
-    left_int_var(:,:,:) = 0.0
     do itt=1,num_itts
       call do_group_pass(CS%pass_t, G%Domain, clock=id_clock_pass)
       !$OMP parallel do default(shared) private(scale,Coef_y,Coef_x,Ihdxdy,dTr,dtr_left, &
@@ -647,24 +644,6 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
       endif ; enddo
 
     enddo ! End of "while" loop.
-
-    ! do m=1,ntr
-    !   if (Reg%Tr(m)%id_hordiff_variance_production > 0) then
-    !     call post_data(Reg%Tr(m)%id_hordiff_variance_production, &
-    !     Reg%Tr(m)%leftint_hordiff_var_prod, CS%diag)
-    !   endif
-    ! enddo
-    ! do m=1,ntr
-    !   if (Reg%Tr(m)%conc_underflow == 0) then
-    !     var_uf = 1e-23 * GV%H_subroundoff * Idt
-    !   else
-    !     var_uf = Reg%Tr(m)%conc_underflow**2 * GV%H_subroundoff * Idt
-    !   endif
-
-    !   do k=1,nz ; do j=js,je ; do i=is,ie
-    !     if (abs(Reg%Tr(m)%cell_hordiff_var_prod(i,j,k)) < var_uf) Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = 0.0
-    !   enddo ; enddo; enddo
-    ! enddo
   endif   ! endif for CS%use_neutral_diffusion
   call cpu_clock_end(id_clock_diffuse)
 
