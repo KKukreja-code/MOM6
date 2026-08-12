@@ -1521,21 +1521,12 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
       call pass_var(CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod, G%Domain, halo=1)
       call pass_var(CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod, G%Domain, halo=1)
       call pass_var(CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod, G%Domain, halo=1)
-      do k=1,GV%ke ; do i=G%isc,G%iec+1 ; do j=G%jsc,G%jec
-        CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod = CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod + &
-        (CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod / 2)
-      enddo ; enddo ; enddo
-      do k=1,GV%ke ; do i=G%isc-1,G%iec ; do j=G%jsc,G%jec
-        CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod = CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod + &
-        (CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod / 2)
-      enddo ; enddo ; enddo
-      do k=1,GV%ke ; do i=G%isc,G%iec ; do j=G%jsc,G%jec+1
-        CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod = CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod + &
-        (CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod / 2)
-      enddo ; enddo ; enddo
-      do k=1,GV%ke ; do i=G%isc,G%iec ; do j=G%jsc-1,G%jec
-        CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod = CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod + &
-        (CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod / 2)
+      do k=1,GV%ke ; do i=G%isc,G%iec ; do j=G%jsc,G%jec
+        CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = &
+        (CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) + CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) + &
+        CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) + CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) + &
+        CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod(i+1,j,k) + CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod(i-1,j,k) + &
+        CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod(i,j-1,k) + CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod(i,j+1,k))/ 2
       enddo ; enddo ; enddo
       call post_data(CS%tracer_Reg%Tr(m)%id_hordiff_variance_production, &
       CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod, CS%diag)

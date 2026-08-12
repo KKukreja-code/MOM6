@@ -171,6 +171,7 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
     Coef_y, &     ! The coefficients relating meridional tracer differences to time-integrated
                   ! fluxes, in [L2 ~> m2] for some schemes and [H L2 ~> m3 or kg] for others.
     Kh_v          ! Tracer mixing coefficient at u-points [L2 T-1 ~> m2 s-1].
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)) :: left_int_var
 
   real :: khdt_max ! The local limiting value of khdt_x or khdt_y [L2 ~> m2].
   real :: Coef_min ! The local limiting value of Coef_x or Coef_y, in [L2 ~> m2] for some
@@ -411,6 +412,15 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
     if (associated(Reg%Tr(m)%df2d_y)) then
       do J=js-1,je ; do i=is,ie ; Reg%Tr(m)%df2d_y(i,J) = 0.0 ; enddo ; enddo
     endif
+    if (associated(Reg%Tr(m)%leftint_hordiff_var_prod)) then
+      do i=is,ie; do j=js,je ; do k=1,nz
+        Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) = 0.0
+        Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) = 0.0
+        Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) = 0.0
+        Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) = 0.0
+        Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = 0.0
+      enddo ; enddo ; enddo
+    endif
   enddo
 
   if (CS%use_hor_bnd_diffusion) then
@@ -546,13 +556,7 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
   else    ! following if not using neutral diffusion, but instead along-surface diffusion
 
     if (CS%show_call_tree) call callTree_waypoint("Calculating horizontal diffusion (tracer_hordiff)")
-    do m=1,ntr
-      Reg%Tr(m)%leftint_hordiff_var_prod(:,:,:) = 0.0
-      Reg%Tr(m)%rightint_hordiff_var_prod(:,:,:) = 0.0
-      Reg%Tr(m)%topint_hordiff_var_prod(:,:,:) = 0.0
-      Reg%Tr(m)%bottomint_hordiff_var_prod(:,:,:) = 0.0
-      Reg%Tr(m)%cell_hordiff_var_prod(:,:,:) = 0.0
-    enddo
+    left_int_var(:,:,:) = 0.0
     do itt=1,num_itts
       call do_group_pass(CS%pass_t, G%Domain, clock=id_clock_pass)
       !$OMP parallel do default(shared) private(scale,Coef_y,Coef_x,Ihdxdy,dTr,dtr_left, &
@@ -607,12 +611,12 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
             Reg%Tr(m)%df2d_y(i,J) = Reg%Tr(m)%df2d_y(i,J) + Coef_y(i,J,1) &
                 * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k)) * Idt
           enddo ; enddo ; endif
-          if (Reg%Tr(m)%id_hordiff_variance_production > 0) then
+          if (associated(Reg%Tr(m)%leftint_hordiff_var_prod)) then
             do i = is,ie ; do j = js,je
-              dtr_left = Coef_x(I-1,j,1) * (Reg%Tr(m)%t(i-1,j,k) - Reg%Tr(m)%t(i,j,k))
-              dtr_right = Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k))
-              dtr_top = Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k))
-              dtr_bottom = Coef_y(i,J-1,1) * (Reg%Tr(m)%t(i,j-1,k) - Reg%Tr(m)%t(i,j,k))
+              dtr_left = Ihdxdy(i,j) * (Coef_x(I-1,j,1) * (Reg%Tr(m)%t(i-1,j,k) - Reg%Tr(m)%t(i,j,k)))
+              dtr_right = Ihdxdy(i,j) * (Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k)))
+              dtr_top = Ihdxdy(i,j) * (Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k)))
+              dtr_bottom = Ihdxdy(i,j) * (Coef_y(i,J-1,1) * (Reg%Tr(m)%t(i,j-1,k) - Reg%Tr(m)%t(i,j,k)))
               Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) + &
               h(i,j,k) * Idt * (2*Reg%Tr(m)%t(i,j,k)*dtr_left - dtr_left*dtr_right - dtr_left*dtr_top + &
               dtr_left*dtr_bottom + dtr_left*dtr_left)
@@ -644,6 +648,12 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
 
     enddo ! End of "while" loop.
 
+    ! do m=1,ntr
+    !   if (Reg%Tr(m)%id_hordiff_variance_production > 0) then
+    !     call post_data(Reg%Tr(m)%id_hordiff_variance_production, &
+    !     Reg%Tr(m)%leftint_hordiff_var_prod, CS%diag)
+    !   endif
+    ! enddo
     ! do m=1,ntr
     !   if (Reg%Tr(m)%conc_underflow == 0) then
     !     var_uf = 1e-23 * GV%H_subroundoff * Idt

@@ -58,7 +58,8 @@ subroutine register_tracer(tr_ptr, Reg, param_file, HI, GV, name, longname, unit
                            cmor_name, cmor_units, cmor_longname, net_surfflux_name, &
                            NLT_budget_name, net_surfflux_longname, tr_desc, OBC_inflow, &
                            OBC_in_u, OBC_in_v, ad_x, ad_y, df_x, df_y, ad_2d_x, ad_2d_y, &
-                           df_2d_x, df_2d_y, advection_xy, registry_diags, &
+                           df_2d_x, df_2d_y, advection_xy, leftint_hordiff, rightint_hordiff, &
+                           bottomint_hordiff, topint_hordiff, cell_hordiff, registry_diags, &
                            conc_scale, flux_nameroot, flux_longname, flux_units, flux_scale, &
                            convergence_units, convergence_scale, cmor_tendprefix, diag_form, &
                            restart_CS, mandatory, underflow_conc, Tr_out, advect_scheme)
@@ -103,7 +104,16 @@ subroutine register_tracer(tr_ptr, Reg, param_file, HI, GV, name, longname, unit
                                                                 !! [CU H L2 T-1 ~> conc m3 s-1 or conc kg s-1]
   real, dimension(:,:),   optional, pointer     :: df_2d_y      !< vert sum of diagnostic y-diffuse flux
                                                                 !! [CU H L2 T-1 ~> conc m3 s-1 or conc kg s-1]
-
+  real, dimension(:,:,:), optional, pointer     :: leftint_hordiff !! left interface variance production from
+                                                                !! horizontal diffusion [CU2 H T-1 ~> conc2 m s-1]
+  real, dimension(:,:,:), optional, pointer     :: rightint_hordiff !! right interface variance production from
+                                                                !! horizontal diffusion [CU2 H T-1 ~> conc2 m s-1]
+  real, dimension(:,:,:), optional, pointer     :: bottomint_hordiff !! bottom interface variance production from
+                                                                !! horizontal diffusion [CU2 H T-1 ~> conc2 m s-1]
+  real, dimension(:,:,:), optional, pointer     :: topint_hordiff !! top interface variance production from
+                                                                !! horizontal diffusion [CU2 H T-1 ~> conc2 m s-1]
+  real, dimension(:,:,:), optional, pointer     :: cell_hordiff !! cell variance production from
+                                                                !! horizontal diffusion [CU2 H T-1 ~> conc2 m s-1]
   real, dimension(:,:,:), optional, pointer     :: advection_xy !< convergence of lateral advective tracer fluxes
                                                                 !! [CU H T-1 ~> conc m s-1 or conc kg m-2 s-1]
   logical,              optional, intent(in)    :: registry_diags !< If present and true, use the registry for
@@ -255,7 +265,21 @@ subroutine register_tracer(tr_ptr, Reg, param_file, HI, GV, name, longname, unit
   if (present(ad_2d_x)) then ; if (associated(ad_2d_x)) Tr%ad2d_x => ad_2d_x ; endif
   if (present(ad_2d_y)) then ; if (associated(ad_2d_y)) Tr%ad2d_y => ad_2d_y ; endif
   if (present(df_2d_x)) then ; if (associated(df_2d_x)) Tr%df2d_x => df_2d_x ; endif
-
+  if (present(leftint_hordiff)) then
+    if (associated(leftint_hordiff)) Tr%leftint_hordiff_var_prod => leftint_hordiff
+  endif
+  if (present(rightint_hordiff)) then
+    if (associated(rightint_hordiff)) Tr%rightint_hordiff_var_prod => rightint_hordiff
+  endif
+  if (present(bottomint_hordiff)) then
+    if (associated(bottomint_hordiff)) Tr%bottomint_hordiff_var_prod => bottomint_hordiff
+  endif
+  if (present(topint_hordiff)) then
+    if (associated(topint_hordiff)) Tr%topint_hordiff_var_prod => topint_hordiff
+  endif
+  if (present(cell_hordiff)) then
+    if (associated(cell_hordiff)) Tr%cell_hordiff_var_prod => cell_hordiff
+  endif
   if (present(advection_xy)) then
     if (associated(advection_xy)) Tr%advection_xy => advection_xy
   endif
@@ -445,15 +469,15 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
     if (Tr%id_hbd_dfx > 0) call safe_alloc_ptr(Tr%hbd_dfx,IsdB,IedB,jsd,jed,nz)
     if (Tr%id_hbd_dfy > 0) call safe_alloc_ptr(Tr%hbd_dfy,isd,ied,JsdB,JedB,nz)
     if (Tr%id_hordiff_variance_production > 0) call &
-    safe_alloc_ptr(Tr%leftint_hordiff_var_prod,is,ie,js,je,nz)
+    safe_alloc_ptr(Tr%leftint_hordiff_var_prod,isd,ied,jsd,jed,nz) ! change dimensions to include halo
     if (Tr%id_hordiff_variance_production > 0) call &
-    safe_alloc_ptr(Tr%rightint_hordiff_var_prod,is,ie,js,je,nz)
+    safe_alloc_ptr(Tr%rightint_hordiff_var_prod,isd,ied,jsd,jed,nz)
     if (Tr%id_hordiff_variance_production > 0) call &
-    safe_alloc_ptr(Tr%topint_hordiff_var_prod,is,ie,js,je,nz)
+    safe_alloc_ptr(Tr%topint_hordiff_var_prod,isd,ied,jsd,jed,nz)
     if (Tr%id_hordiff_variance_production > 0) call &
-    safe_alloc_ptr(Tr%bottomint_hordiff_var_prod,is,ie,js,je,nz)
+    safe_alloc_ptr(Tr%bottomint_hordiff_var_prod,isd,ied,jsd,jed,nz)
     if (Tr%id_hordiff_variance_production > 0) call &
-    safe_alloc_ptr(Tr%cell_hordiff_var_prod,is,ie,js,je,nz)
+    safe_alloc_ptr(Tr%cell_hordiff_var_prod,isd,ied,jsd,jed,nz)
 
     Tr%id_adx_2d = register_diag_field("ocean_model", trim(shortnm)//"_adx_2d", &
         diag%axesCu1, Time, &
