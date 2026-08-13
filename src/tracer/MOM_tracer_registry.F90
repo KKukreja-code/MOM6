@@ -912,6 +912,27 @@ subroutine post_tracer_transport_diagnostics(G, GV, Reg, h_diag, diag, uhtr, vht
       enddo ; enddo ; enddo
       call post_data(Tr%id_adv_xy_2d, work2d, diag)
     endif
+    ! if (Tr%id_hordiff_variance_production > 0) then
+    !   call pass_var(Tr%leftint_hordiff_var_prod, G%Domain, halo=1)
+    !   call pass_var(Tr%rightint_hordiff_var_prod, G%Domain, halo=1)
+    !   call pass_var(Tr%topint_hordiff_var_prod, G%Domain, halo=1)
+    !   call pass_var(Tr%bottomint_hordiff_var_prod, G%Domain, halo=1)
+    !   do k=1,GV%ke ; do i=G%isc,G%iec ; do j=G%jsc,G%jec
+    !     Tr%cell_hordiff_var_prod(i,j,k) = &
+    !     (Tr%leftint_hordiff_var_prod(i,j,k) + Tr%rightint_hordiff_var_prod(i,j,k) + &
+    !     Tr%topint_hordiff_var_prod(i,j,k) + Tr%bottomint_hordiff_var_prod(i,j,k) + &
+    !     Tr%leftint_hordiff_var_prod(i+1,j,k) + Tr%rightint_hordiff_var_prod(i-1,j,k) + &
+    !     Tr%topint_hordiff_var_prod(i,j-1,k) + Tr%bottomint_hordiff_var_prod(i,j+1,k))/ 2
+    !     ! if (k == 5 .and. i == (G%isc+G%iec)/2 .and. j == (G%jsc+G%jec)/2) then
+    !     !   write(6,*) Tr%leftint_hordiff_var_prod(i,j,k)
+    !     !   write(6,*) Tr%rightint_hordiff_var_prod(i,j,k)
+    !     !   write(6,*) Tr%topint_hordiff_var_prod(i,j,k)
+    !     !   write(6,*) Tr%bottomint_hordiff_var_prod(i,j,k)
+    !     ! endif
+    !   enddo ; enddo ; enddo
+    !   call post_data(Tr%id_hordiff_variance_production, &
+    !   Tr%cell_hordiff_var_prod, diag)
+    ! endif
 
     if (Tr%id_advection_scheme_variance_production > 0) then
       asvp(:,:,:) = 0.

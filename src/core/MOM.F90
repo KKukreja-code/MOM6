@@ -1515,23 +1515,29 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
   if (CS%debug) call MOM_tracer_chksum("Post-advect ", CS%tracer_Reg, G)
   call tracer_hordiff(h, CS%t_dyn_rel_adv, CS%MEKE, CS%VarMix, CS%visc, G, GV, US, &
                       CS%tracer_diff_CSp, CS%tracer_Reg, CS%tv)
-  do m=1,CS%tracer_Reg%ntr
-    if (CS%tracer_Reg%Tr(m)%id_hordiff_variance_production > 0) then
-      call pass_var(CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod, G%Domain, halo=1)
-      call pass_var(CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod, G%Domain, halo=1)
-      call pass_var(CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod, G%Domain, halo=1)
-      call pass_var(CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod, G%Domain, halo=1)
-      do k=1,GV%ke ; do i=G%isc,G%iec ; do j=G%jsc,G%jec
-        CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = &
-        (CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) + CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) + &
-        CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) + CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) + &
-        CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod(i+1,j,k) + CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod(i-1,j,k) + &
-        CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod(i,j-1,k) + CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod(i,j+1,k))/ 2
-      enddo ; enddo ; enddo
-      call post_data(CS%tracer_Reg%Tr(m)%id_hordiff_variance_production, &
-      CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod, CS%diag)
-    endif
-  enddo
+  ! do m=1,CS%tracer_Reg%ntr
+  !   if (CS%tracer_Reg%Tr(m)%id_hordiff_variance_production > 0) then
+  !     call pass_var(CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod, G%Domain, halo=1)
+  !     call pass_var(CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod, G%Domain, halo=1)
+  !     call pass_var(CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod, G%Domain, halo=1)
+  !     call pass_var(CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod, G%Domain, halo=1)
+  !     do k=1,GV%ke ; do i=G%isc,G%iec ; do j=G%jsc,G%jec
+  !       CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = &
+  !       (CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) + CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) + &
+  !       CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) + CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) + &
+  !       CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod(i+1,j,k) + CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod(i-1,j,k) + &
+  !       CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod(i,j-1,k) + CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod(i,j+1,k))/ 2
+  !       if (k == 5 .and. i == (G%isc+G%iec)/2 .and. j == (G%jsc+G%jec)/2) then
+  !         write(6,*) CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k)
+  !         write(6,*) CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k)
+  !         write(6,*) CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod(i,j,k)
+  !         write(6,*) CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k)
+  !       endif
+  !     enddo ; enddo ; enddo
+  !     call post_data(CS%tracer_Reg%Tr(m)%id_hordiff_variance_production, &
+  !     CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod, CS%diag)
+  !   endif
+  ! enddo
   if (CS%debug) call MOM_tracer_chksum("Post-diffuse ", CS%tracer_Reg, G)
   if (showCallTree) call callTree_waypoint("finished tracer advection/diffusion (step_MOM)")
   if (associated(CS%OBC)) then

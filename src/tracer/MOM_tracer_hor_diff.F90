@@ -614,6 +614,12 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
               dtr_right = Ihdxdy(i,j) * (Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k)))
               dtr_top = Ihdxdy(i,j) * (Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k)))
               dtr_bottom = Ihdxdy(i,j) * (Coef_y(i,J-1,1) * (Reg%Tr(m)%t(i,j-1,k) - Reg%Tr(m)%t(i,j,k)))
+              if (k == 5 .and. i == (G%isc+G%iec)/2 .and. j == (G%jsc+G%jec)/2) then
+                write(6,*) 'Left hc^2', (dtr_left**2)*h(i,j,k)
+                write(6,*) 'Right hc^2', (dtr_right**2)*h(i,j,k)
+                write(6,*) 'Bottom hc^2', (dtr_top**2)*h(i,j,k)
+                write(6,*) 'Top hc^2', (dtr_bottom**2)*h(i,j,k)
+              endif
               Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) + &
               h(i,j,k) * Idt * (2*Reg%Tr(m)%t(i,j,k)*dtr_left - dtr_left*dtr_right - dtr_left*dtr_top + &
               dtr_left*dtr_bottom + dtr_left*dtr_left)
