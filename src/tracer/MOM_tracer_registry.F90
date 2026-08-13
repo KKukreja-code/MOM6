@@ -417,7 +417,7 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
           "Spurious variance production of "//trim(shortnm)//" variance due to horizontal diffusion", &
           trim(Tr%units)//"2 m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
       Tr%id_leftint_variance_production = register_diag_field("ocean_model", &
-          trim(Tr%flux_nameroot)//"_hordiff_variance_production", diag%axesTL, Time, &
+          trim(Tr%flux_nameroot)//"_leftint_variance_production", diag%axesTL, Time, &
           "Variance production of "//trim(shortnm)//" due to horizontal diffusion at left interface", &
           trim(Tr%units)//"2 m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     else
@@ -454,7 +454,7 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
           "Spurious variance production of "//trim(shortnm)//" variance due to horizontal diffusion", &
           trim(Tr%units)//"2 m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
       Tr%id_leftint_variance_production = register_diag_field("ocean_model", &
-          trim(Tr%flux_nameroot)//"_hordiff_variance_production", diag%axesTL, Time, &
+          trim(Tr%flux_nameroot)//"_leftint_variance_production", diag%axesTL, Time, &
           "Variance production of "//trim(shortnm)//" due to horizontal diffusion at left interface", &
           trim(Tr%units)//"2 m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     endif
@@ -912,27 +912,21 @@ subroutine post_tracer_transport_diagnostics(G, GV, Reg, h_diag, diag, uhtr, vht
       enddo ; enddo ; enddo
       call post_data(Tr%id_adv_xy_2d, work2d, diag)
     endif
-    ! if (Tr%id_hordiff_variance_production > 0) then
-    !   call pass_var(Tr%leftint_hordiff_var_prod, G%Domain, halo=1)
-    !   call pass_var(Tr%rightint_hordiff_var_prod, G%Domain, halo=1)
-    !   call pass_var(Tr%topint_hordiff_var_prod, G%Domain, halo=1)
-    !   call pass_var(Tr%bottomint_hordiff_var_prod, G%Domain, halo=1)
-    !   do k=1,GV%ke ; do i=G%isc,G%iec ; do j=G%jsc,G%jec
-    !     Tr%cell_hordiff_var_prod(i,j,k) = &
-    !     (Tr%leftint_hordiff_var_prod(i,j,k) + Tr%rightint_hordiff_var_prod(i,j,k) + &
-    !     Tr%topint_hordiff_var_prod(i,j,k) + Tr%bottomint_hordiff_var_prod(i,j,k) + &
-    !     Tr%leftint_hordiff_var_prod(i+1,j,k) + Tr%rightint_hordiff_var_prod(i-1,j,k) + &
-    !     Tr%topint_hordiff_var_prod(i,j-1,k) + Tr%bottomint_hordiff_var_prod(i,j+1,k))/ 2
-    !     ! if (k == 5 .and. i == (G%isc+G%iec)/2 .and. j == (G%jsc+G%jec)/2) then
-    !     !   write(6,*) Tr%leftint_hordiff_var_prod(i,j,k)
-    !     !   write(6,*) Tr%rightint_hordiff_var_prod(i,j,k)
-    !     !   write(6,*) Tr%topint_hordiff_var_prod(i,j,k)
-    !     !   write(6,*) Tr%bottomint_hordiff_var_prod(i,j,k)
-    !     ! endif
-    !   enddo ; enddo ; enddo
-    !   call post_data(Tr%id_hordiff_variance_production, &
-    !   Tr%cell_hordiff_var_prod, diag)
-    ! endif
+    if (Tr%id_hordiff_variance_production > 0) then
+      call pass_var(Tr%leftint_hordiff_var_prod, G%Domain, halo=1)
+      call pass_var(Tr%rightint_hordiff_var_prod, G%Domain, halo=1)
+      call pass_var(Tr%topint_hordiff_var_prod, G%Domain, halo=1)
+      call pass_var(Tr%bottomint_hordiff_var_prod, G%Domain, halo=1)
+      do k=1,GV%ke ; do i=G%isc,G%iec ; do j=G%jsc,G%jec
+        Tr%cell_hordiff_var_prod(i,j,k) = &
+        (Tr%leftint_hordiff_var_prod(i,j,k) + Tr%rightint_hordiff_var_prod(i,j,k) + &
+        Tr%topint_hordiff_var_prod(i,j,k) + Tr%bottomint_hordiff_var_prod(i,j,k) + &
+        Tr%leftint_hordiff_var_prod(i+1,j,k) + Tr%rightint_hordiff_var_prod(i-1,j,k) + &
+        Tr%topint_hordiff_var_prod(i,j-1,k) + Tr%bottomint_hordiff_var_prod(i,j+1,k))/ 2
+      enddo ; enddo ; enddo
+      call post_data(Tr%id_hordiff_variance_production, &
+      Tr%cell_hordiff_var_prod, diag)
+    endif
 
     if (Tr%id_advection_scheme_variance_production > 0) then
       asvp(:,:,:) = 0.
