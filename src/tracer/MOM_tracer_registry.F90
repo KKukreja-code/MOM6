@@ -416,6 +416,10 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
           trim(Tr%flux_nameroot)//"_hordiff_variance_production", diag%axesTL, Time, &
           "Spurious variance production of "//trim(shortnm)//" variance due to horizontal diffusion", &
           trim(Tr%units)//"2 m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
+      Tr%id_leftint_variance_production = register_diag_field("ocean_model", &
+          trim(Tr%flux_nameroot)//"_hordiff_variance_production", diag%axesTL, Time, &
+          "Variance production of "//trim(shortnm)//" due to horizontal diffusion at left interface", &
+          trim(Tr%units)//"2 m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     else
       Tr%id_adx = register_diag_field("ocean_model", trim(shortnm)//"_adx", &
           diag%axesCuL, Time, "Advective (by residual mean) Zonal Flux of "//trim(flux_longname), &
@@ -449,6 +453,10 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
           trim(Tr%flux_nameroot)//"_hordiff_variance_production", diag%axesTL, Time, &
           "Spurious variance production of "//trim(shortnm)//" variance due to horizontal diffusion", &
           trim(Tr%units)//"2 m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
+      Tr%id_leftint_variance_production = register_diag_field("ocean_model", &
+          trim(Tr%flux_nameroot)//"_hordiff_variance_production", diag%axesTL, Time, &
+          "Variance production of "//trim(shortnm)//" due to horizontal diffusion at left interface", &
+          trim(Tr%units)//"2 m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     endif
     Tr%id_zint = register_diag_field("ocean_model", trim(shortnm)//"_zint", &
         diag%axesT1, Time, &
@@ -469,7 +477,7 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
     if (Tr%id_hbd_dfx > 0) call safe_alloc_ptr(Tr%hbd_dfx,IsdB,IedB,jsd,jed,nz)
     if (Tr%id_hbd_dfy > 0) call safe_alloc_ptr(Tr%hbd_dfy,isd,ied,JsdB,JedB,nz)
     if (Tr%id_hordiff_variance_production > 0) call &
-    safe_alloc_ptr(Tr%leftint_hordiff_var_prod,isd,ied,jsd,jed,nz) ! change dimensions to include halo
+    safe_alloc_ptr(Tr%leftint_hordiff_var_prod,isd,ied,jsd,jed,nz)
     if (Tr%id_hordiff_variance_production > 0) call &
     safe_alloc_ptr(Tr%rightint_hordiff_var_prod,isd,ied,jsd,jed,nz)
     if (Tr%id_hordiff_variance_production > 0) call &
