@@ -31,8 +31,7 @@ use MOM_tracer_registry,          only : tracer_registry_type, tracer_type, MOM_
 use MOM_unit_scaling,             only : unit_scale_type
 use MOM_variables,                only : thermo_var_ptrs, vertvisc_type
 use MOM_verticalGrid,             only : verticalGrid_type
- ! Possible extra module
- ! use MOM_tracer_parameterised_variance_production, only : interface_variance_production
+use MOM_tracer_parameterised_variance_production, only : hor_interface_variance_production
 
 implicit none ; private
 
@@ -190,7 +189,7 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
   real :: Res_Fn     ! The local value of the resolution function [nondim].
   real :: Rd_dx      ! The local value of deformation radius over grid-spacing [nondim].
   real :: normalize  ! normalization used for diagnostic Kh_h [nondim]; diffusivity averaged to h-points.
-  real :: dtr_left, dtr_right, dtr_top, dtr_bottom ! Changes in tracer content at neighbouring interfaces
+  ! real :: dtr_left, dtr_right, dtr_top, dtr_bottom ! Changes in tracer content at neighbouring interfaces
   ! ! due to diffusion, for variance production calculation [Conc]
 
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
@@ -558,8 +557,7 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
     if (CS%show_call_tree) call callTree_waypoint("Calculating horizontal diffusion (tracer_hordiff)")
     do itt=1,num_itts
       call do_group_pass(CS%pass_t, G%Domain, clock=id_clock_pass)
-      !$OMP parallel do default(shared) private(scale,Coef_y,Coef_x,Ihdxdy,dTr,dtr_left, &
-      !$OMP dtr_right, dtr_top, dtr_bottom)
+      !$OMP parallel do default(shared) private(scale,Coef_y,Coef_x,Ihdxdy,dTr)
       do k=1,nz
         scale = I_numitts
         if (CS%Diffuse_ML_interior) then
@@ -611,32 +609,7 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
                 * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k)) * Idt
           enddo ; enddo ; endif
           if (associated(Reg%Tr(m)%leftint_hordiff_var_prod)) then
-            ! Possible subroutine to replace this block, need to check def of dtr_* and whether they need OMP above
-            ! call interface_variance_production(G, GV, Reg%Tr(m), Idt, Ihdxdy, h, Coef_x, Coef_y, k)
-            do i = is,ie ; do j = js,je
-              dtr_left = Ihdxdy(i,j) * (Coef_x(I-1,j,1) * (Reg%Tr(m)%t(i-1,j,k) - Reg%Tr(m)%t(i,j,k)))
-              dtr_right = Ihdxdy(i,j) * (Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k)))
-              dtr_top = Ihdxdy(i,j) * (Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k)))
-              dtr_bottom = Ihdxdy(i,j) * (Coef_y(i,J-1,1) * (Reg%Tr(m)%t(i,j-1,k) - Reg%Tr(m)%t(i,j,k)))
-              if (k == 5 .and. i == (G%isc+G%iec)/2 .and. j == (G%jsc+G%jec)/2) then
-                write(6,*) 'Left hc^2', (dtr_left**2)*h(i,j,k)
-                write(6,*) 'Right hc^2', (dtr_right**2)*h(i,j,k)
-                write(6,*) 'Bottom hc^2', (dtr_top**2)*h(i,j,k)
-                write(6,*) 'Top hc^2', (dtr_bottom**2)*h(i,j,k)
-              endif
-              Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) + &
-              h(i,j,k) * Idt * (2*Reg%Tr(m)%t(i,j,k)*dtr_left - dtr_left*dtr_right - dtr_left*dtr_top + &
-              dtr_left*dtr_bottom + dtr_left*dtr_left)
-              Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) + &
-              h(i,j,k) * Idt * (-2*Reg%Tr(m)%t(i,j,k)*dtr_right - dtr_right*dtr_left - dtr_right*dtr_bottom + &
-              dtr_right*dtr_top + dtr_right*dtr_right)
-              Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) + &
-              h(i,j,k) * Idt * (2*Reg%Tr(m)%t(i,j,k)*dtr_bottom + dtr_bottom*dtr_left - dtr_bottom*dtr_right - &
-              dtr_bottom*dtr_top + dtr_bottom*dtr_bottom)
-              Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) + &
-              h(i,j,k) * Idt * (-2*Reg%Tr(m)%t(i,j,k)*dtr_top - dtr_top*dtr_left + dtr_top*dtr_right - &
-              dtr_top*dtr_bottom + dtr_top*dtr_top)
-            enddo ; enddo
+            call hor_interface_variance_production(G, GV, Reg%Tr(m), Idt, Ihdxdy, h, Coef_x, Coef_y, k)
           endif
           do j=js,je ; do i=is,ie
             Reg%Tr(m)%t(i,j,k) = Reg%Tr(m)%t(i,j,k) + dTr(i,j)

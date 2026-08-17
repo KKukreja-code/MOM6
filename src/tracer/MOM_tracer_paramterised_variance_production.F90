@@ -10,60 +10,60 @@ implicit none ; private
 
 #include <MOM_memory.h>
 
-public compute_cell_hordiff_variance_production, T_interface_diabatic_variance_production
+public compute_cell_hordiff_variance_production, hor_interface_variance_production, T_cell_diabatic_variance_production
 
 contains
 
-! Possible subroutine for hordiff
-! subroutine interface_variance_production(G, GV, Tr, Idt, Ihdxdy, h, Coef_x, Coef_y, k)
-!
-!   type(ocean_grid_type),                        intent(in) :: G       !< Ocean grid structure
-!   type(verticalGrid_type),                      intent(in) :: GV      !< Ocean vertical grid structure
-!   type(tracer_type),                            intent(in) :: Tr      !< Pointer to the tracer regsitry
-!   real,                                         intent(in) :: Idt     !< Inverse time interval [T-1 ~> s-1]
-!   real, dimension(SZI_(G),SZJ_(G)),             intent(in) :: Ihdxdy  !<  The inverse of the volume or mass of fluid
-!                                                                       !! in a layer in a grid cell
-!                                                                       !! [H-1 L-2 ~> m-3 or kg-1]
-!   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)),    intent(in) :: h       !< thickness [H ~> m or kg m-2]
-!   real, dimension(SZIB_(G),SZJ_(G),SZK_(GV)+1), intent(in) :: Coef_x  !< The coefficients relating zonal tracer
-!                                                                       !! differences to time-integrated fluxes, in
-!                                                                       !! [L2 ~> m2] for some schemes and
-!                                                                       !! [H L2 ~> m3 or kg] for others.
-!   real, dimension(SZI_(G),SZJB_(G),SZK_(GV)+1), intent(in) :: Coef_y  !< The coefficients relating meridional tracer
-!                                                                       !! differences to time-integrated fluxes, in
-!                                                                       !! [L2 ~> m2] for some schemes and
-!                                                                       !! [H L2 ~> m3 or kg] for others.
-!   real,                                         intent(in) :: k       !< vertical index
-!
-!   ! Local variables
-!   integer :: is, ie, js, je      !< Grid cell centre and layer indexes
-!   integer :: i, j                !< Counters
-!   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec
-!   real :: dtr_left, dtr_right, dtr_top, dtr_bottom !< Changes in tracer content at neighbouring interfaces
-!                                                    !! due to diffusion, for variance production calculation [Conc]
-!
-!   do i = is,ie ; do j = js,je
-!     dtr_left = Ihdxdy(i,j) * (Coef_x(I-1,j,1) * (Tr%t(i-1,j,k) - Tr%t(i,j,k)))
-!     dtr_right = Ihdxdy(i,j) * (Coef_x(I,j,1) * (Tr%t(i,j,k) - Tr%t(i+1,j,k)))
-!     dtr_top = Ihdxdy(i,j) * (Coef_y(i,J,1) * (Tr%t(i,j,k) - Tr%t(i,j+1,k)))
-!     dtr_bottom = Ihdxdy(i,j) * (Coef_y(i,J-1,1) * (Tr%t(i,j-1,k) - Tr%t(i,j,k)))
-!     Tr%leftint_hordiff_var_prod(i,j,k) = Tr%leftint_hordiff_var_prod(i,j,k) + &
-!     h(i,j,k) * Idt * (2*Tr%t(i,j,k)*dtr_left - dtr_left*dtr_right - dtr_left*dtr_top + &
-!     dtr_left*dtr_bottom + dtr_left*dtr_left)
-!     Tr%rightint_hordiff_var_prod(i,j,k) = Tr%rightint_hordiff_var_prod(i,j,k) + &
-!     h(i,j,k) * Idt * (-2*Tr%t(i,j,k)*dtr_right - dtr_right*dtr_left - dtr_right*dtr_bottom + &
-!     dtr_right*dtr_top + dtr_right*dtr_right)
-!     Tr%bottomint_hordiff_var_prod(i,j,k) = Tr%bottomint_hordiff_var_prod(i,j,k) + &
-!     h(i,j,k) * Idt * (2*Tr%t(i,j,k)*dtr_bottom + dtr_bottom*dtr_left - dtr_bottom*dtr_right - &
-!     dtr_bottom*dtr_top + dtr_bottom*dtr_bottom)
-!     Tr%topint_hordiff_var_prod(i,j,k) = Tr%topint_hordiff_var_prod(i,j,k) + &
-!     h(i,j,k) * Idt * (-2*Tr%t(i,j,k)*dtr_top - dtr_top*dtr_left + dtr_top*dtr_right - &
-!     dtr_top*dtr_bottom + dtr_top*dtr_top)
-!   enddo ; enddo
-!
-!   end subroutine interface_variance_production
+!< Subroutine to calculate variance production at grid cell interfaces
+subroutine hor_interface_variance_production(G, GV, Tr, Idt, Ihdxdy, h, Coef_x, Coef_y, k)
 
-! Subroutine to sum the contirbutions that contribute to changes in variance due to horizontal diffusion
+  type(ocean_grid_type),                        intent(in) :: G       !< Ocean grid structure
+  type(verticalGrid_type),                      intent(in) :: GV      !< Ocean vertical grid structure
+  type(tracer_type),                            intent(in) :: Tr      !< Pointer to the tracer regsitry
+  real,                                         intent(in) :: Idt     !< Inverse time interval [T-1 ~> s-1]
+  real, dimension(SZI_(G),SZJ_(G)),             intent(in) :: Ihdxdy  !<  The inverse of the volume or mass of fluid
+                                                                      !! in a layer in a grid cell
+                                                                      !! [H-1 L-2 ~> m-3 or kg-1]
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)),    intent(in) :: h       !< thickness [H ~> m or kg m-2]
+  real, dimension(SZIB_(G),SZJ_(G),SZK_(GV)+1), intent(in) :: Coef_x  !< The coefficients relating zonal tracer
+                                                                      !! differences to time-integrated fluxes, in
+                                                                      !! [L2 ~> m2] for some schemes and
+                                                                      !! [H L2 ~> m3 or kg] for others.
+  real, dimension(SZI_(G),SZJB_(G),SZK_(GV)+1), intent(in) :: Coef_y  !< The coefficients relating meridional tracer
+                                                                      !! differences to time-integrated fluxes, in
+                                                                      !! [L2 ~> m2] for some schemes and
+                                                                      !! [H L2 ~> m3 or kg] for others.
+  integer,                                      intent(in) :: k       !< vertical index
+
+  ! Local variables
+  integer :: is, ie, js, je                        !< Grid cell centre and layer indexes
+  integer :: i, j                                  !< Counters
+  real :: dtr_left, dtr_right, dtr_top, dtr_bottom !< Changes in tracer content at neighbouring interfaces
+                                                   !! due to diffusion, for variance production calculation [Conc]
+  is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec
+
+  do i = is,ie ; do j = js,je
+    dtr_left = Ihdxdy(i,j) * (Coef_x(I-1,j,1) * (Tr%t(i-1,j,k) - Tr%t(i,j,k)))
+    dtr_right = Ihdxdy(i,j) * (Coef_x(I,j,1) * (Tr%t(i,j,k) - Tr%t(i+1,j,k)))
+    dtr_top = Ihdxdy(i,j) * (Coef_y(i,J,1) * (Tr%t(i,j,k) - Tr%t(i,j+1,k)))
+    dtr_bottom = Ihdxdy(i,j) * (Coef_y(i,J-1,1) * (Tr%t(i,j-1,k) - Tr%t(i,j,k)))
+    Tr%leftint_hordiff_var_prod(i,j,k) = Tr%leftint_hordiff_var_prod(i,j,k) + &
+    h(i,j,k) * Idt * (2*Tr%t(i,j,k)*dtr_left - dtr_left*dtr_right - dtr_left*dtr_top + &
+    dtr_left*dtr_bottom + dtr_left*dtr_left)
+    Tr%rightint_hordiff_var_prod(i,j,k) = Tr%rightint_hordiff_var_prod(i,j,k) + &
+    h(i,j,k) * Idt * (-2*Tr%t(i,j,k)*dtr_right - dtr_right*dtr_left - dtr_right*dtr_bottom + &
+    dtr_right*dtr_top + dtr_right*dtr_right)
+    Tr%bottomint_hordiff_var_prod(i,j,k) = Tr%bottomint_hordiff_var_prod(i,j,k) + &
+    h(i,j,k) * Idt * (2*Tr%t(i,j,k)*dtr_bottom + dtr_bottom*dtr_left - dtr_bottom*dtr_right - &
+    dtr_bottom*dtr_top + dtr_bottom*dtr_bottom)
+    Tr%topint_hordiff_var_prod(i,j,k) = Tr%topint_hordiff_var_prod(i,j,k) + &
+    h(i,j,k) * Idt * (-2*Tr%t(i,j,k)*dtr_top - dtr_top*dtr_left + dtr_top*dtr_right - &
+    dtr_top*dtr_bottom + dtr_top*dtr_top)
+  enddo ; enddo
+
+  end subroutine hor_interface_variance_production
+
+!< Subroutine to sum the contirbutions that contribute to changes in variance due to horizontal diffusion
 subroutine compute_cell_hordiff_variance_production(G, GV, Tr)
 
   type(ocean_grid_type),                        intent(in) :: G         !< Ocean grid structure
@@ -89,9 +89,9 @@ subroutine compute_cell_hordiff_variance_production(G, GV, Tr)
 
 end subroutine compute_cell_hordiff_variance_production
 
-! Subroutine to compute the variance production at cell centres due to diabatic diffusion. Diabatic diffusion
-! (i.e. mixing) destroys variance so the output for this diagnostic will be negative.
-subroutine T_interface_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, temp_diag, T_cell_var_prod)
+!< Subroutine to compute the variance production at cell centres due to diabatic diffusion. Diabatic diffusion
+!! (i.e. mixing) destroys variance so the output for this diagnostic will be negative.
+subroutine T_cell_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, temp_diag, T_cell_var_prod)
 
   type(ocean_grid_type),                        intent(in) :: G         !< Ocean grid structure
   type(verticalGrid_type),                      intent(in) :: GV        !< Ocean vertical grid structure
@@ -134,6 +134,6 @@ subroutine T_interface_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx,
                                     (T_int_var_prod_up(i,j,k)+T_int_var_prod_up(i,j,k+1))/2)
   enddo ; enddo ; enddo
 
-end subroutine T_interface_diabatic_variance_production
+end subroutine T_cell_diabatic_variance_production
 
 end module MOM_tracer_parameterised_variance_production
