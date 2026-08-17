@@ -27,6 +27,7 @@ use MOM_unit_scaling,  only : unit_scale_type
 use MOM_verticalGrid,  only : verticalGrid_type
 use MOM_tracer_types,  only : tracer_type, tracer_registry_type
 use MOM_tracer_numerical_mixing,  only : advection_scheme_variance_production
+use MOM_tracer_parameterised_variance_production, only : compute_cell_hordiff_variance_production
 
 implicit none ; private
 
@@ -58,8 +59,8 @@ subroutine register_tracer(tr_ptr, Reg, param_file, HI, GV, name, longname, unit
                            cmor_name, cmor_units, cmor_longname, net_surfflux_name, &
                            NLT_budget_name, net_surfflux_longname, tr_desc, OBC_inflow, &
                            OBC_in_u, OBC_in_v, ad_x, ad_y, df_x, df_y, ad_2d_x, ad_2d_y, &
-                           df_2d_x, df_2d_y, advection_xy, leftint_hordiff, rightint_hordiff, &
-                           bottomint_hordiff, topint_hordiff, cell_hordiff, registry_diags, &
+                           df_2d_x, df_2d_y, advection_xy, leftint_hordiff_vp, rightint_hordiff_vp, &
+                           bottomint_hordiff_vp, topint_hordiff_vp, cell_hordiff_vp, registry_diags, &
                            conc_scale, flux_nameroot, flux_longname, flux_units, flux_scale, &
                            convergence_units, convergence_scale, cmor_tendprefix, diag_form, &
                            restart_CS, mandatory, underflow_conc, Tr_out, advect_scheme)
@@ -104,15 +105,15 @@ subroutine register_tracer(tr_ptr, Reg, param_file, HI, GV, name, longname, unit
                                                                 !! [CU H L2 T-1 ~> conc m3 s-1 or conc kg s-1]
   real, dimension(:,:),   optional, pointer     :: df_2d_y      !< vert sum of diagnostic y-diffuse flux
                                                                 !! [CU H L2 T-1 ~> conc m3 s-1 or conc kg s-1]
-  real, dimension(:,:,:), optional, pointer     :: leftint_hordiff !! left interface variance production from
+  real, dimension(:,:,:), optional, pointer     :: leftint_hordiff_vp !< left interface variance production from
                                                                 !! horizontal diffusion [CU2 H T-1 ~> conc2 m s-1]
-  real, dimension(:,:,:), optional, pointer     :: rightint_hordiff !! right interface variance production from
+  real, dimension(:,:,:), optional, pointer     :: rightint_hordiff_vp !< right interface variance production from
                                                                 !! horizontal diffusion [CU2 H T-1 ~> conc2 m s-1]
-  real, dimension(:,:,:), optional, pointer     :: bottomint_hordiff !! bottom interface variance production from
+  real, dimension(:,:,:), optional, pointer     :: bottomint_hordiff_vp !< bottom interface variance production from
                                                                 !! horizontal diffusion [CU2 H T-1 ~> conc2 m s-1]
-  real, dimension(:,:,:), optional, pointer     :: topint_hordiff !! top interface variance production from
+  real, dimension(:,:,:), optional, pointer     :: topint_hordiff_vp !< top interface variance production from
                                                                 !! horizontal diffusion [CU2 H T-1 ~> conc2 m s-1]
-  real, dimension(:,:,:), optional, pointer     :: cell_hordiff !! cell variance production from
+  real, dimension(:,:,:), optional, pointer     :: cell_hordiff_vp !< cell variance production from
                                                                 !! horizontal diffusion [CU2 H T-1 ~> conc2 m s-1]
   real, dimension(:,:,:), optional, pointer     :: advection_xy !< convergence of lateral advective tracer fluxes
                                                                 !! [CU H T-1 ~> conc m s-1 or conc kg m-2 s-1]
@@ -268,20 +269,20 @@ subroutine register_tracer(tr_ptr, Reg, param_file, HI, GV, name, longname, unit
   if (present(ad_2d_x)) then ; if (associated(ad_2d_x)) Tr%ad2d_x => ad_2d_x ; endif
   if (present(ad_2d_y)) then ; if (associated(ad_2d_y)) Tr%ad2d_y => ad_2d_y ; endif
   if (present(df_2d_x)) then ; if (associated(df_2d_x)) Tr%df2d_x => df_2d_x ; endif
-  if (present(leftint_hordiff)) then
-    if (associated(leftint_hordiff)) Tr%leftint_hordiff_var_prod => leftint_hordiff
+  if (present(leftint_hordiff_vp)) then
+    if (associated(leftint_hordiff_vp)) Tr%leftint_hordiff_var_prod => leftint_hordiff_vp
   endif
-  if (present(rightint_hordiff)) then
-    if (associated(rightint_hordiff)) Tr%rightint_hordiff_var_prod => rightint_hordiff
+  if (present(rightint_hordiff_vp)) then
+    if (associated(rightint_hordiff_vp)) Tr%rightint_hordiff_var_prod => rightint_hordiff_vp
   endif
-  if (present(bottomint_hordiff)) then
-    if (associated(bottomint_hordiff)) Tr%bottomint_hordiff_var_prod => bottomint_hordiff
+  if (present(bottomint_hordiff_vp)) then
+    if (associated(bottomint_hordiff_vp)) Tr%bottomint_hordiff_var_prod => bottomint_hordiff_vp
   endif
-  if (present(topint_hordiff)) then
-    if (associated(topint_hordiff)) Tr%topint_hordiff_var_prod => topint_hordiff
+  if (present(topint_hordiff_vp)) then
+    if (associated(topint_hordiff_vp)) Tr%topint_hordiff_var_prod => topint_hordiff_vp
   endif
-  if (present(cell_hordiff)) then
-    if (associated(cell_hordiff)) Tr%cell_hordiff_var_prod => cell_hordiff
+  if (present(cell_hordiff_vp)) then
+    if (associated(cell_hordiff_vp)) Tr%cell_hordiff_var_prod => cell_hordiff_vp
   endif
   if (present(advection_xy)) then
     if (associated(advection_xy)) Tr%advection_xy => advection_xy
@@ -443,6 +444,14 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
         trim(shortnm)//"_advection_scheme_variance_production", diag%axesTL, Time, &
         "Spurious variance production of "//trim(shortnm)//" variance due to advection", &
         trim(unit2)//" m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
+    Tr%id_hordiff_variance_production = register_diag_field("ocean_model", &
+          trim(Tr%flux_nameroot)//"_hordiff_variance_production", diag%axesTL, Time, &
+          "Spurious variance production of "//trim(shortnm)//" variance due to horizontal diffusion", &
+          trim(unit2)//" m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
+    Tr%id_leftint_variance_production = register_diag_field("ocean_model", &
+          trim(Tr%flux_nameroot)//"_leftint_variance_production", diag%axesTL, Time, &
+          "Variance production of "//trim(shortnm)//" due to horizontal diffusion at left interface", &
+          trim(unit2)//" m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     Tr%id_zint = register_diag_field("ocean_model", trim(shortnm)//"_zint", &
         diag%axesT1, Time, &
         "Thickness-weighted integral of " // trim(longname), &
@@ -893,19 +902,8 @@ subroutine post_tracer_transport_diagnostics(G, GV, Reg, h_diag, diag, uhtr, vht
       call post_data(Tr%id_adv_xy_2d, work2d, diag)
     endif
     if (Tr%id_hordiff_variance_production > 0) then
-      call pass_var(Tr%leftint_hordiff_var_prod, G%Domain, halo=1)
-      call pass_var(Tr%rightint_hordiff_var_prod, G%Domain, halo=1)
-      call pass_var(Tr%topint_hordiff_var_prod, G%Domain, halo=1)
-      call pass_var(Tr%bottomint_hordiff_var_prod, G%Domain, halo=1)
-      do k=1,GV%ke ; do i=G%isc,G%iec ; do j=G%jsc,G%jec
-        Tr%cell_hordiff_var_prod(i,j,k) = &
-        (Tr%leftint_hordiff_var_prod(i,j,k) + Tr%rightint_hordiff_var_prod(i,j,k) + &
-        Tr%topint_hordiff_var_prod(i,j,k) + Tr%bottomint_hordiff_var_prod(i,j,k) + &
-        Tr%leftint_hordiff_var_prod(i+1,j,k) + Tr%rightint_hordiff_var_prod(i-1,j,k) + &
-        Tr%topint_hordiff_var_prod(i,j-1,k) + Tr%bottomint_hordiff_var_prod(i,j+1,k))/ 2
-      enddo ; enddo ; enddo
-      call post_data(Tr%id_hordiff_variance_production, &
-      Tr%cell_hordiff_var_prod, diag)
+      call compute_cell_hordiff_variance_production(G, GV, Tr)
+      call post_data(Tr%id_hordiff_variance_production, Tr%cell_hordiff_var_prod, diag)
     endif
 
     if (Tr%id_advection_scheme_variance_production > 0) then

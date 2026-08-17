@@ -31,6 +31,8 @@ use MOM_tracer_registry,          only : tracer_registry_type, tracer_type, MOM_
 use MOM_unit_scaling,             only : unit_scale_type
 use MOM_variables,                only : thermo_var_ptrs, vertvisc_type
 use MOM_verticalGrid,             only : verticalGrid_type
+ ! Possible extra module
+ ! use MOM_tracer_parameterised_variance_production, only : interface_variance_production
 
 implicit none ; private
 
@@ -189,7 +191,7 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
   real :: Rd_dx      ! The local value of deformation radius over grid-spacing [nondim].
   real :: normalize  ! normalization used for diagnostic Kh_h [nondim]; diffusivity averaged to h-points.
   real :: dtr_left, dtr_right, dtr_top, dtr_bottom ! Changes in tracer content at neighbouring interfaces
-  ! due to diffusion, for variance production calculation [Conc]
+  ! ! due to diffusion, for variance production calculation [Conc]
 
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
 
@@ -609,6 +611,8 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
                 * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k)) * Idt
           enddo ; enddo ; endif
           if (associated(Reg%Tr(m)%leftint_hordiff_var_prod)) then
+            ! Possible subroutine to replace this block, need to check def of dtr_* and whether they need OMP above
+            ! call interface_variance_production(G, GV, Reg%Tr(m), Idt, Ihdxdy, h, Coef_x, Coef_y, k)
             do i = is,ie ; do j = js,je
               dtr_left = Ihdxdy(i,j) * (Coef_x(I-1,j,1) * (Reg%Tr(m)%t(i-1,j,k) - Reg%Tr(m)%t(i,j,k)))
               dtr_right = Ihdxdy(i,j) * (Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k)))
@@ -651,9 +655,8 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
 
     enddo ! End of "while" loop.
     do m=1,ntr
-      if (Reg%Tr(m)%id_leftint_variance_production > 0) then
-        call post_data(Reg%Tr(m)%id_hordiff_variance_production, &
-      Reg%Tr(m)%leftint_hordiff_var_prod, CS%diag)
+      if (Reg%Tr(m)%id_leftint_variance_production> 0) then
+        call post_data(Reg%Tr(m)%id_leftint_variance_production, Reg%Tr(m)%leftint_hordiff_var_prod, CS%diag)
       endif
     enddo
   endif   ! endif for CS%use_neutral_diffusion

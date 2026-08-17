@@ -71,6 +71,7 @@ use MOM_ALE_sponge,          only : apply_ALE_sponge, ALE_sponge_CS
 use MOM_time_manager,        only : time_type, real_to_time, operator(-), operator(<=)
 use MOM_tracer_flow_control, only : call_tracer_column_fns, tracer_flow_control_CS
 use MOM_tracer_diabatic,     only : tracer_vertdiff, tracer_vertdiff_Eulerian
+use MOM_tracer_parameterised_variance_production, only : T_interface_diabatic_variance_production
 use MOM_unit_scaling,        only : unit_scale_type
 use MOM_variables,           only : thermo_var_ptrs, vertvisc_type, accel_diag_ptrs
 use MOM_variables,           only : cont_diag_ptrs, MOM_thermovar_chksum, p3d
@@ -1279,7 +1280,7 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     v_h,    &     ! Meridional velocities interpolated to thickness points [L T-1 ~> m s-1]
     temp_diag, &  ! Diagnostic array of previous temperatures [C ~> degC]
     saln_diag, &  ! Diagnostic array of previous salinity [S ~> ppt]
-    T_cell_var_prod ! Averaged variance production in cell due to diabatic diffusion
+    T_cell_var_prod ! Averaged variance production in cell due to diabatic diffusion [CU2 H T-1 ~> conc2 m s-1]
 
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)+1) :: &
     ent_s,    & ! The diffusive coupling across interfaces within one time step for
@@ -1300,11 +1301,7 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     Tdif_flx, & ! diffusive diapycnal heat flux across interfaces [C H T-1 ~> degC m s-1 or degC kg m-2 s-1]
     Sdif_flx, & ! diffusive diapycnal salt flux across interfaces [S H T-1 ~> ppt m s-1 or ppt kg m-2 s-1]
     N2_salt, &  !< Salinity contribution to squared buoyancy frequency at interfaces [T-2 ~> s-2]
-    N2_temp, &   !< Temperature contribution to squared buoyancy frequency at interfaces [T-2 ~> s-2]
-    T_int_var_prod_down, & ! Variance production due to diabatic diffusion at an interface, when sequentially updating &
-                         ! tracer content from top to bottom
-    T_int_var_prod_up      ! Variance production due to diabatic diffusion at an interface, when sequentially updating &
-                         ! tracer content from bottom to top
+    N2_temp   !< Temperature contribution to squared buoyancy frequency at interfaces [T-2 ~> s-2]
 
   real, dimension(SZI_(G),SZJ_(G)) :: &
     U_star, &    ! The friction velocity [Z T-1 ~> m s-1].
@@ -1736,24 +1733,25 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     if (CS%id_Sdif > 0) call post_data(CS%id_Sdif, Sdif_flx, CS%diag)
   endif
   if (CS%id_T_diabatic_diff_var_prod > 0) then
-    do j=js,je ; do i=is,ie
-      T_int_var_prod_down(i,j,1) = 0.0 ; T_int_var_prod_down(i,j,nz+1) = 0.0
-      T_int_var_prod_up(i,j,1) = 0.0 ; T_int_var_prod_up(i,j,nz+1) = 0.0
-    enddo ; enddo
-    do K=2,nz ; do j=js,je ; do i=is,ie
-      T_int_var_prod_down(i,j,K) = ((dt*Tdif_flx(i,j,K))**2) * ((1/h(i,j,K-1))+(1/h(i,j,K))) + &
-      2 * (dt*Tdif_flx(i,j,K)) * (temp_diag(i,j,K)-temp_diag(i,j,K-1)-(dt*Tdif_flx(i,j,K-1)/h(i,j,K-1)))
-      T_int_var_prod_down(i,j,K) = Idt * T_int_var_prod_down(i,j,K)
-      T_int_var_prod_up(i,j,K) = ((dt*Tdif_flx(i,j,K))**2) * ((1/h(i,j,K-1))+(1/h(i,j,K))) + &
-      2 * (dt*Tdif_flx(i,j,K)) * (temp_diag(i,j,K)-temp_diag(i,j,K-1)-(dt*Tdif_flx(i,j,K+1)/h(i,j,K)))
-      T_int_var_prod_up(i,j,K) = Idt * T_int_var_prod_up(i,j,K)
-    enddo ; enddo ; enddo
-    do k=1,nz ; do j=js,je ; do i=is,ie
-      T_cell_var_prod(i,j,k) = 0.5 * ((T_int_var_prod_down(i,j,k)+T_int_var_prod_down(i,j,k+1))/2 + &
-                             (T_int_var_prod_up(i,j,k)+T_int_var_prod_up(i,j,k+1))/2)
-    enddo ; enddo ; enddo
-    if (CS%id_T_diabatic_diff_var_prod>0) call &
-    post_data(CS%id_T_diabatic_diff_var_prod, T_cell_var_prod, CS%diag)
+    T_cell_var_prod(:,:,:) = 0.
+    call T_interface_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, temp_diag, T_cell_var_prod)
+    call post_data(CS%id_T_diabatic_diff_var_prod, T_cell_var_prod, CS%diag)
+    ! do j=js,je ; do i=is,ie
+    !   T_int_var_prod_down(i,j,1) = 0.0 ; T_int_var_prod_down(i,j,nz+1) = 0.0
+    !   T_int_var_prod_up(i,j,1) = 0.0 ; T_int_var_prod_up(i,j,nz+1) = 0.0
+    ! enddo ; enddo
+    ! do K=2,nz ; do j=js,je ; do i=is,ie
+    !   T_int_var_prod_down(i,j,K) = ((dt*Tdif_flx(i,j,K))**2) * ((1/h(i,j,K-1))+(1/h(i,j,K))) + &
+    !   2 * (dt*Tdif_flx(i,j,K)) * (temp_diag(i,j,K)-temp_diag(i,j,K-1)-(dt*Tdif_flx(i,j,K-1)/h(i,j,K-1)))
+    !   T_int_var_prod_down(i,j,K) = Idt * T_int_var_prod_down(i,j,K)
+    !   T_int_var_prod_up(i,j,K) = ((dt*Tdif_flx(i,j,K))**2) * ((1/h(i,j,K-1))+(1/h(i,j,K))) + &
+    !   2 * (dt*Tdif_flx(i,j,K)) * (temp_diag(i,j,K)-temp_diag(i,j,K-1)-(dt*Tdif_flx(i,j,K+1)/h(i,j,K)))
+    !   T_int_var_prod_up(i,j,K) = Idt * T_int_var_prod_up(i,j,K)
+    ! enddo ; enddo ; enddo
+    ! do k=1,nz ; do j=js,je ; do i=is,ie
+    !   T_cell_var_prod(i,j,k) = 0.5 * ((T_int_var_prod_down(i,j,k)+T_int_var_prod_down(i,j,k+1))/2 + &
+    !                          (T_int_var_prod_up(i,j,k)+T_int_var_prod_up(i,j,k+1))/2)
+    ! enddo ; enddo ; enddo
   endif
 
   if (CS%Use_KdWork_diag .or. CS%Use_N2_diag) then
