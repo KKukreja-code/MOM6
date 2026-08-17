@@ -1746,7 +1746,7 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
       T_int_var_prod_down(i,j,K) = Idt * T_int_var_prod_down(i,j,K)
       T_int_var_prod_up(i,j,K) = ((dt*Tdif_flx(i,j,K))**2) * ((1/h(i,j,K-1))+(1/h(i,j,K))) + &
       2 * (dt*Tdif_flx(i,j,K)) * (temp_diag(i,j,K)-temp_diag(i,j,K-1)-(dt*Tdif_flx(i,j,K+1)/h(i,j,K)))
-      T_int_var_prod_up(i,j,K) = Idt * T_int_var_prod_down(i,j,K)
+      T_int_var_prod_up(i,j,K) = Idt * T_int_var_prod_up(i,j,K)
     enddo ; enddo ; enddo
     do k=1,nz ; do j=js,je ; do i=is,ie
       T_cell_var_prod(i,j,k) = 0.5 * ((T_int_var_prod_down(i,j,k)+T_int_var_prod_down(i,j,k+1))/2 + &

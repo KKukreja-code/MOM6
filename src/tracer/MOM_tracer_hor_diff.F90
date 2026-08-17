@@ -188,6 +188,8 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
   real :: Res_Fn     ! The local value of the resolution function [nondim].
   real :: Rd_dx      ! The local value of deformation radius over grid-spacing [nondim].
   real :: normalize  ! normalization used for diagnostic Kh_h [nondim]; diffusivity averaged to h-points.
+  real :: dtr_left, dtr_right, dtr_top, dtr_bottom ! Changes in tracer content at neighbouring interfaces
+  ! due to diffusion, for variance production calculation [Conc]
 
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
 
@@ -408,6 +410,15 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
     if (associated(Reg%Tr(m)%df2d_y)) then
       do J=js-1,je ; do i=is,ie ; Reg%Tr(m)%df2d_y(i,J) = 0.0 ; enddo ; enddo
     endif
+    if (associated(Reg%Tr(m)%leftint_hordiff_var_prod)) then
+      do i=is,ie; do j=js,je ; do k=1,nz
+        Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) = 0.0
+        Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) = 0.0
+        Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) = 0.0
+        Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) = 0.0
+        Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = 0.0
+      enddo ; enddo ; enddo
+    endif
   enddo
 
   if (CS%use_hor_bnd_diffusion) then
@@ -545,7 +556,8 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
     if (CS%show_call_tree) call callTree_waypoint("Calculating horizontal diffusion (tracer_hordiff)")
     do itt=1,num_itts
       call do_group_pass(CS%pass_t, G%Domain, clock=id_clock_pass)
-      !$OMP parallel do default(shared) private(scale,Coef_y,Coef_x,Ihdxdy,dTr)
+      !$OMP parallel do default(shared) private(scale,Coef_y,Coef_x,Ihdxdy,dTr,dtr_left, &
+      !$OMP dtr_right, dtr_top, dtr_bottom)
       do k=1,nz
         scale = I_numitts
         if (CS%Diffuse_ML_interior) then
@@ -596,6 +608,32 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
             Reg%Tr(m)%df2d_y(i,J) = Reg%Tr(m)%df2d_y(i,J) + Coef_y(i,J,1) &
                 * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k)) * Idt
           enddo ; enddo ; endif
+          if (associated(Reg%Tr(m)%leftint_hordiff_var_prod)) then
+            do i = is,ie ; do j = js,je
+              dtr_left = Ihdxdy(i,j) * (Coef_x(I-1,j,1) * (Reg%Tr(m)%t(i-1,j,k) - Reg%Tr(m)%t(i,j,k)))
+              dtr_right = Ihdxdy(i,j) * (Coef_x(I,j,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i+1,j,k)))
+              dtr_top = Ihdxdy(i,j) * (Coef_y(i,J,1) * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k)))
+              dtr_bottom = Ihdxdy(i,j) * (Coef_y(i,J-1,1) * (Reg%Tr(m)%t(i,j-1,k) - Reg%Tr(m)%t(i,j,k)))
+              if (k == 5 .and. i == (G%isc+G%iec)/2 .and. j == (G%jsc+G%jec)/2) then
+                write(6,*) 'Left hc^2', (dtr_left**2)*h(i,j,k)
+                write(6,*) 'Right hc^2', (dtr_right**2)*h(i,j,k)
+                write(6,*) 'Bottom hc^2', (dtr_top**2)*h(i,j,k)
+                write(6,*) 'Top hc^2', (dtr_bottom**2)*h(i,j,k)
+              endif
+              Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) + &
+              h(i,j,k) * Idt * (2*Reg%Tr(m)%t(i,j,k)*dtr_left - dtr_left*dtr_right - dtr_left*dtr_top + &
+              dtr_left*dtr_bottom + dtr_left*dtr_left)
+              Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) + &
+              h(i,j,k) * Idt * (-2*Reg%Tr(m)%t(i,j,k)*dtr_right - dtr_right*dtr_left - dtr_right*dtr_bottom + &
+              dtr_right*dtr_top + dtr_right*dtr_right)
+              Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) + &
+              h(i,j,k) * Idt * (2*Reg%Tr(m)%t(i,j,k)*dtr_bottom + dtr_bottom*dtr_left - dtr_bottom*dtr_right - &
+              dtr_bottom*dtr_top + dtr_bottom*dtr_bottom)
+              Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) = Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) + &
+              h(i,j,k) * Idt * (-2*Reg%Tr(m)%t(i,j,k)*dtr_top - dtr_top*dtr_left + dtr_top*dtr_right - &
+              dtr_top*dtr_bottom + dtr_top*dtr_top)
+            enddo ; enddo
+          endif
           do j=js,je ; do i=is,ie
             Reg%Tr(m)%t(i,j,k) = Reg%Tr(m)%t(i,j,k) + dTr(i,j)
           enddo ; enddo
@@ -612,7 +650,12 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
       endif ; enddo
 
     enddo ! End of "while" loop.
-
+    do m=1,ntr
+      if (Reg%Tr(m)%id_leftint_variance_production > 0) then
+        call post_data(Reg%Tr(m)%id_hordiff_variance_production, &
+      Reg%Tr(m)%leftint_hordiff_var_prod, CS%diag)
+      endif
+    enddo
   endif   ! endif for CS%use_neutral_diffusion
   call cpu_clock_end(id_clock_diffuse)
 
