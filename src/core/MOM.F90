@@ -1523,10 +1523,14 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
   !     call pass_var(CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod, G%Domain, halo=1)
   !     do k=1,GV%ke ; do i=G%isc,G%iec ; do j=G%jsc,G%jec
   !       CS%tracer_Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = &
-  !       (CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) + CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) + &
-  !       CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) + CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) + &
-  !       CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod(i+1,j,k) + CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod(i-1,j,k) + &
-  !       CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod(i,j-1,k) + CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod(i,j+1,k))/ 2
+  !       (CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k) + &
+  !        CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k) + &
+  !        CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod(i,j,k) + &
+  !        CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod(i,j,k) + &
+  !        CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod(i+1,j,k) + &
+  !        CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod(i-1,j,k) + &
+  !        CS%tracer_Reg%Tr(m)%topint_hordiff_var_prod(i,j-1,k) + &
+  !        CS%tracer_Reg%Tr(m)%bottomint_hordiff_var_prod(i,j+1,k))/ 2
   !       if (k == 5 .and. i == (G%isc+G%iec)/2 .and. j == (G%jsc+G%jec)/2) then
   !         write(6,*) CS%tracer_Reg%Tr(m)%leftint_hordiff_var_prod(i,j,k)
   !         write(6,*) CS%tracer_Reg%Tr(m)%rightint_hordiff_var_prod(i,j,k)

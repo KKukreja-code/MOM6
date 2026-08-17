@@ -21,8 +21,9 @@ contains
 !   type(verticalGrid_type),                      intent(in) :: GV      !< Ocean vertical grid structure
 !   type(tracer_type),                            intent(in) :: Tr      !< Pointer to the tracer regsitry
 !   real,                                         intent(in) :: Idt     !< Inverse time interval [T-1 ~> s-1]
-!   real, dimension(SZI_(G),SZJ_(G)),             intent(in) :: Ihdxdy  !<  The inverse of the volume or mass of fluid in
-!                                                                       !! a layer in a grid cell [H-1 L-2 ~> m-3 or kg-1]
+!   real, dimension(SZI_(G),SZJ_(G)),             intent(in) :: Ihdxdy  !<  The inverse of the volume or mass of fluid
+!                                                                       !! in a layer in a grid cell
+!                                                                       !! [H-1 L-2 ~> m-3 or kg-1]
 !   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)),    intent(in) :: h       !< thickness [H ~> m or kg m-2]
 !   real, dimension(SZIB_(G),SZJ_(G),SZK_(GV)+1), intent(in) :: Coef_x  !< The coefficients relating zonal tracer
 !                                                                       !! differences to time-integrated fluxes, in
@@ -100,7 +101,7 @@ subroutine T_interface_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx,
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)+1),  intent(in) :: Tdif_flx  !< diffusive diapycnal heat flux across
                                                                         !! interfaces
                                                                         !! [C H T-1 ~> degC m s-1 or degC kg m-2 s-1]
-  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)),    intent(in) :: temp_diag !< Diagnostic array of previous 
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)),    intent(in) :: temp_diag !< Diagnostic array of previous
                                                                         !! temperatures [C ~> degC]
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)), intent(inout) :: T_cell_var_prod !< Averaged variance production in cell
                                                                               !! due to diabatic diffusion
@@ -116,7 +117,7 @@ subroutine T_interface_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx,
   integer :: is, ie, js, je, nz  !< Grid cell centre and layer indexes
   integer :: i, j, k             !< Counters
 
-  is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke 
+  is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
   T_int_var_prod_down(:,:,:) = 0.0
   T_int_var_prod_up(:,:,:) = 0.0
 
