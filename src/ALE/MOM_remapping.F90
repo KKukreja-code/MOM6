@@ -20,7 +20,7 @@ use PPM_functions, only : PPM_reconstruction, PPM_boundary_extrapolation
 use PPM_functions, only : PPM_monotonicity
 use PQM_functions, only : PQM_reconstruction, PQM_boundary_extrapolation_v1
 use MOM_hybgen_remap, only : hybgen_plm_coefs, hybgen_ppm_coefs, hybgen_weno_coefs
-use MOM_tracer_remap_variance_production, only : remapping_variance_production
+use MOM_tracer_numerical_mixing, only : remapping_variance_production
 
 use Recon1d_type, only : Recon1d
 use Recon1d_PCM, only : PCM

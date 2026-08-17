@@ -387,10 +387,6 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
           "flux from the horizontal boundary diffusion scheme", trim(flux_units), &
           v_extensive=.true., &
           x_cell_method='sum', conversion=(US%L_to_m**2)*Tr%flux_scale*US%s_to_T)
-      Tr%id_advection_scheme_variance_production = register_diag_field("ocean_model", &
-          trim(shortnm)//"_advection_scheme_variance_production", diag%axesTL, Time, &
-          "Spurious variance production of "//trim(shortnm)//" variance due to advection", &
-          trim(Tr%units)//"2 m s-1", conversion=(TR%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     else
       Tr%id_adx = register_diag_field("ocean_model", trim(shortnm)//"_adx", &
           diag%axesCuL, Time, "Advective (by residual mean) Zonal Flux of "//trim(flux_longname), &
@@ -416,10 +412,6 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
           "Horizontal Boundary Diffusive Meridional Flux of "//trim(flux_longname), &
           flux_units, v_extensive=.true., conversion=(US%L_to_m**2)*Tr%flux_scale*US%s_to_T, &
           x_cell_method='sum')
-      Tr%id_advection_scheme_variance_production = register_diag_field("ocean_model", &
-          trim(shortnm)//"_advection_scheme_variance_production", diag%axesTL, Time, &
-          "Spurious variance production of "//trim(shortnm)//" variance due to advection", &
-          trim(Tr%units)//"2 m s-1", conversion=(TR%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     endif
     unit2 = trim(units)//"2"
     if (index(units(1:len_trim(units))," ") > 0) unit2 = "("//trim(units)//")2"
@@ -624,12 +616,12 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
       Tr%id_remap_variance_production = register_diag_field("ocean_model", &
           trim(Tr%flux_nameroot)//"_remap_variance_production", diag%axesTL, Time, &
           "Spurious variance production of "//trim(shortnm)//" variance due to remapping", &
-          trim(Tr%units)//"2 m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
+          trim(unit2)//" m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
 
       Tr%id_remap_variance_production_2d = register_diag_field("ocean_model", &
           trim(Tr%flux_nameroot)//"_remap_variance_production_2d", diag%axesT1, Time, &
           "Vertical integral of spurious variance production of "//trim(shortnm)//" variance due to remapping", &
-          trim(Tr%units)//"2 m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
+          trim(unit2)//" m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     endif
 
     if (use_ALE .and. (Reg%ntr<MAX_FIELDS_) .and. Tr%remap_tr) then
@@ -817,7 +809,6 @@ subroutine post_tracer_transport_diagnostics(G, GV, Reg, h_diag, diag, uhtr, vht
   type(tracer_type), pointer :: Tr=>NULL()
 
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
-  H_to_RZ_dt = GV%H_to_RZ * Idt
 
   ! If any tracers are posting 100m vertical integrals, compute weights
   frac_under_100m(:,:,:) = 0.0
