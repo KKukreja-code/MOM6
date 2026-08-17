@@ -190,6 +190,9 @@ subroutine register_tracer(tr_ptr, Reg, param_file, HI, GV, name, longname, unit
   Tr%conc_underflow = 0.0
   if (present(underflow_conc)) Tr%conc_underflow = underflow_conc
 
+  ! transform asvar_underflow from [Conc2] ~> [CU2] to get correct internal units for each tracer
+  Tr%var_underflow = Reg%asvar_underflow / (Tr%conc_scale**2)
+
   Tr%flux_nameroot = Tr%name
   if (present(flux_nameroot)) then
     if (len_trim(flux_nameroot) > 0) Tr%flux_nameroot = flux_nameroot
@@ -418,6 +421,12 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
           "Spurious variance production of "//trim(shortnm)//" variance due to advection", &
           trim(Tr%units)//"2 m s-1", conversion=(TR%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     endif
+    unit2 = trim(units)//"2"
+    if (index(units(1:len_trim(units))," ") > 0) unit2 = "("//trim(units)//")2"
+    Tr%id_advection_scheme_variance_production = register_diag_field("ocean_model", &
+        trim(shortnm)//"_advection_scheme_variance_production", diag%axesTL, Time, &
+        "Spurious variance production of "//trim(shortnm)//" variance due to advection", &
+        trim(unit2)//" m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     Tr%id_zint = register_diag_field("ocean_model", trim(shortnm)//"_zint", &
         diag%axesT1, Time, &
         "Thickness-weighted integral of " // trim(longname), &
@@ -490,7 +499,7 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
 
     if ((Tr%id_tendency > 0) .or. (Tr%id_advection_scheme_variance_production > 0)) then
       call safe_alloc_ptr(Tr%t_prev,isd,ied,jsd,jed,nz)
-      do k=1,nz ; do j=js-2,je+2 ; do i=is-2,ie+2
+      do k=1,nz ; do j=js-1,je+1 ; do i=is-1,ie+1
         Tr%t_prev(i,j,k) = Tr%t(i,j,k)
       enddo ; enddo ; enddo
     endif
@@ -624,8 +633,6 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
     endif
 
     if (use_ALE .and. (Reg%ntr<MAX_FIELDS_) .and. Tr%remap_tr) then
-      unit2 = trim(units)//"2"
-      if (index(units(1:len_trim(units))," ") > 0) unit2 = "("//trim(units)//")2"
       Tr%id_tr_vardec = register_diag_field('ocean_model', trim(shortnm)//"_vardec", diag%axesTL, &
           Time, "ALE variance decay for "//lowercase(longname), &
           trim(unit2)//" s-1", conversion=Tr%conc_scale**2*US%s_to_T)
@@ -755,8 +762,8 @@ subroutine post_tracer_diagnostics_at_sync(Reg, h, diag_prev, diag, G, GV, dt)
       call post_data(Tr%id_tendency, work3d, diag, alt_h=diag_prev%h_state)
     endif
     if (Tr%id_advection_scheme_variance_production > 0) then
-      call pass_var(Tr%t, G%Domain, halo=2)
-      do k=1,nz ; do j=js-2,je+2 ; do i=is-2,ie+2
+      call pass_var(Tr%t, G%Domain, halo=1)
+      do k=1,nz ; do j=js-1,je+1 ; do i=is-1,ie+1
         tr%t_prev(i,j,k) =  Tr%t(i,j,k)
       enddo ; enddo ; enddo
     endif
@@ -805,10 +812,8 @@ subroutine post_tracer_transport_diagnostics(G, GV, Reg, h_diag, diag, uhtr, vht
   real    :: frac_under_100m(SZI_(G),SZJ_(G),SZK_(GV)) ! weights used to compute 100m vertical integrals [nondim]
   real    :: ztop(SZI_(G),SZJ_(G)) ! position of the top interface [H ~> m or kg m-2]
   real    :: zbot(SZI_(G),SZJ_(G)) ! position of the bottom interface [H ~> m or kg m-2]
-  real, dimension(SZI_(G),SZJ_(G),SZK_(GV))   :: asvp ! Advection scheme varianve production of a
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV))   :: asvp ! Advection scheme variance production of a
                                                       ! tracer [CU2 H T-1 ~> conc2 m s-1]
-  real :: H_to_RZ_dt      ! A conversion factor from accumulated transports to fluxes
-                          ! [R Z H-1 T-1 ~> kg m-3 s-1 or s-1].
   type(tracer_type), pointer :: Tr=>NULL()
 
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
@@ -1024,6 +1029,13 @@ subroutine tracer_registry_init(param_file, Reg)
 
   if (.not.associated(Reg)) then ; allocate(Reg)
   else ; return ; endif
+
+  ! Read in the nondim value that is used to set the underflow value below which advection scheme variance
+  ! production is set to zero
+  call get_param(param_file, mdl, "ADVECTION_SCHEME_VARIANCE_UNDERFLOW", Reg%asvar_underflow, &
+               "A tiny magnitude for variance used to determine when advection scheme variance &
+                production is set to 0.", &
+               units='Conc2 (tracer dependent)', default=1e-23)
 
   ! Read all relevant parameters and write them to the model log.
   call log_version(param_file, mdl, version, "", all_default=.true.)

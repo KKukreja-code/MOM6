@@ -27,8 +27,9 @@ subroutine advection_scheme_variance_production(G, GV, Tr, h_diag, h, dt_trans, 
                                                                         !! used to advect tracers [H L2 ~> m3 or kg]
   real, dimension(SZI_(G),SZJB_(G),SZK_(GV)),   intent(in) :: vhtr      !< Accumulated meridional thickness fluxes
                                                                         !! used to advect tracers [H L2 ~> m3 or kg]
-  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)), intent(inout) :: asvp      !< Advection scheme varianve production
-                                                                        !! diagnostic [CU2 H T-1 ~> conc2 m s-1]
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)), intent(inout) :: asvp      !< Advection scheme variance production
+                                                                        !! diagnostic [CU2 H T-1 ~> conc2 m s-1 or
+                                                                        !!             conc2 kg m-2 s-1]
 
   call thickness_weighted_variance_advection(G, GV, Tr, h_diag, h, dt_trans, Idt, asvp)
   call thickness_weighted_variance_flux_divergence(G, Gv, Tr, uhtr, vhtr, Idt, asvp)
@@ -52,14 +53,17 @@ subroutine thickness_weighted_variance_advection(G, GV, Tr, h_diag, h, dt, Idt, 
   !< Local variables
   integer :: is, ie, js, je, nz  !< Grid cell centre and layer indexes
   integer :: i, j, k             !< Counters
+  real :: h_neglect              !< A thickness that is so small it is usually lost
+                                 !< in roundoff and can be neglected [H ~> m or kg m-2]
   real :: Ih                     !< Inverse updated thickness [H-1 ~> m-1]
   real :: ht_prev                !< Thickness weighted tracer prior to dynamics [CU H ~> conc m]
   real :: ht_adv                 !< Thickness weighted tracer after lateral advection [CU H ~> conc m]
 
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
+  h_neglect = GV%H_subroundoff
 
   do k=1,nz ; do j=js,je ; do i=is,ie
-    Ih = 1 / h(i,j,k)
+    Ih = 1 / (h(i,j,k) + h_neglect)
     ht_prev = h_diag(i,j,k) * Tr%t_prev(i,j,k)
     ht_adv = ht_prev + dt * Tr%advection_xy(i,j,k)
     asvp(i,j,k) = ( (Ih * (ht_adv*ht_adv)) - (ht_prev * Tr%t_prev(i,j,k)) ) * Idt
@@ -96,7 +100,7 @@ subroutine thickness_weighted_variance_flux_divergence(G, Gv, Tr, uhtr, vhtr, Id
   call zonal_upwind_values(G, GV, Tr, uhtr, x_upwind)
   call meridional_upwind_values(G, GV, Tr, vhtr, y_upwind)
 
-  do k=1,nz ;  do j=js,je ; do i=is,ie
+  do k=1,nz ; do j=js,je ; do i=is,ie
      east = (2 * (Tr%ad_x(I,j,k)  *x_upwind(I,j,k)))   - ((Idt*uhtr(I,j,k))   * (x_upwind(I,j,k)  *x_upwind(I,j,k)))
      west = (2 * (Tr%ad_x(I-1,j,k)*x_upwind(I-1,j,k))) - ((Idt*uhtr(I-1,j,k)) * (x_upwind(I-1,j,k)*x_upwind(I-1,j,k)))
     north = (2 * (Tr%ad_y(i,J,k)  *y_upwind(i,J,k)))   - ((Idt*vhtr(i,J,k))   * (y_upwind(i,J,k)  *y_upwind(i,J,k)))
@@ -122,11 +126,7 @@ subroutine check_variance_underflow(G, GV, Tr, Idt, asvp)
                                  !! [CU2 H T-1 ~> conc2 m s-1 or conc2 kg m-2 s-1]
 
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
-  if (Tr%conc_underflow == 0) then
-    var_uf = 1e-23 * GV%H_subroundoff * Idt
-  else
-    var_uf = Tr%conc_underflow**2 * GV%H_subroundoff * Idt
-  endif
+  var_uf = Tr%var_underflow * GV%H_subroundoff * Idt
 
   do k=1,nz ; do j=js,je ; do i=is,ie
       if (abs(asvp(i,j,k)) < var_uf) asvp(i, j, k) = 0.0
