@@ -188,20 +188,20 @@ end subroutine meridional_upwind_values
 
 !< Subroutine to calculate the numerical mixing due to the remapping scheme in MOM6.
 subroutine remapping_variance_production(n0, h0, u0, n1, h1, u1, itgt_start, itgt_end, &
-                                     isrc_start, isrc_end, h_sub, u_sub, col_var_production)
+                                         isrc_start, isrc_end, h_sub, u_sub, col_var_production)
 
-  integer,                intent(in) :: n0 !< Number of cells on source grid
-  real, dimension(n0),    intent(in) :: h0 !< Cell widths on source grid [H]
-  real, dimension(n0),    intent(in) :: u0 !< Cell averages on source grid [A]
-  integer,                intent(in) :: n1 !< Number of cells on target grid
-  real, dimension(n1),    intent(in) :: h1 !< Cell widths on target grid [H]
-  real, dimension(n1),    intent(in) :: u1 !< Cell averages on target grid [A]
-  integer,                intent(in) :: itgt_start(n1) !< Index of first sub-cell within each target cell
-  integer,                intent(in) :: itgt_end(n1) !< Index of last sub-cell within each target cell
-  integer, dimension(n0), intent(in) :: isrc_start ! Index of first sub-cell within each source cell
-  integer, dimension(n0), intent(in) :: isrc_end ! Index of last sub-cell within each source cell
-  real,                   intent(in) :: h_sub(n0+n1+1) !< Overlapping sub-cell thicknesses, h_sub [H]
-  real,                   intent(in) :: u_sub(n0+n1+1) !< Sub-cell cell averages (size n1) [A]
+  integer,                intent(in) :: n0                 !< Number of cells on source grid
+  real, dimension(n0),    intent(in) :: h0                 !< Cell widths on source grid [H]
+  real, dimension(n0),    intent(in) :: u0                 !< Cell averages on source grid [A]
+  integer,                intent(in) :: n1                 !< Number of cells on target grid
+  real, dimension(n1),    intent(in) :: h1                 !< Cell widths on target grid [H]
+  real, dimension(n1),    intent(in) :: u1                 !< Cell averages on target grid [A]
+  integer,                intent(in) :: itgt_start(n1)     !< Index of first sub-cell within each target cell
+  integer,                intent(in) :: itgt_end(n1)       !< Index of last sub-cell within each target cell
+  integer, dimension(n0), intent(in) :: isrc_start         !< Index of first sub-cell within each source cell
+  integer, dimension(n0), intent(in) :: isrc_end           !< Index of last sub-cell within each source cell
+  real,                   intent(in) :: h_sub(n0+n1+1)     !< Overlapping sub-cell thicknesses, h_sub [H]
+  real,                   intent(in) :: u_sub(n0+n1+1)     !< Sub-cell cell averages (size n1) [A]
   real, dimension(n1), intent(inout) :: col_var_production !< Remap variance production for a column
 
   ! Local variables
