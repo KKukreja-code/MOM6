@@ -61,7 +61,7 @@ subroutine hor_interface_variance_production(G, GV, Tr, Idt, Ihdxdy, h, Coef_x, 
     dtr_top*dtr_bottom + dtr_top*dtr_top)
   enddo ; enddo
 
-  end subroutine hor_interface_variance_production
+end subroutine hor_interface_variance_production
 
 !< Subroutine to sum the contirbutions that contribute to changes in variance due to horizontal diffusion
 subroutine compute_cell_hordiff_variance_production(G, GV, Tr)
