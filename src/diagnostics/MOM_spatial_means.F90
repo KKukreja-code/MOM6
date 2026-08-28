@@ -382,6 +382,60 @@ function global_volume_mean(var, h, G, GV, scale, tmp_scale, unscale)
 
 end function global_volume_mean
 
+!> Find the global thickness-weighted integral of a variable. This uses reproducing sums.
+function global_volume_integral(var, h, G, GV, scale, tmp_scale, unscale)
+  type(ocean_grid_type),   intent(in)  :: G    !< The ocean's grid structure
+  type(verticalGrid_type), intent(in)  :: GV   !< The ocean's vertical grid structure
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)), &
+                           intent(in)  :: var  !< The variable to sum in arbitrary units [a],
+                                               !! or arbitrary rescaled units [A ~> a] if unscale
+                                               !! or tmp_scale is present
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)), &
+                           intent(in)  :: h    !< Layer thicknesses [H ~> m or kg m-2]
+  real,          optional, intent(in)  :: scale !< A rescaling factor for the variable [a A-1 ~> 1]
+                                               !! that converts it back to unscaled (e.g., mks)
+                                               !! units to enable the use of the reproducing sums
+  real,          optional, intent(in)  :: tmp_scale !< A temporary rescaling factor for the
+                                               !! variable that is reversed in the return value [a A-1 ~> 1],
+                                               !! or [b B-1 ~> 1] if unscale is also present.
+  real,          optional, intent(in)  :: unscale !< A rescaling factor for the variable [a A-1 ~> 1]
+                                               !! that converts it back to unscaled (e.g., mks)
+                                               !! units to enable the use of the reproducing sums, or
+                                               !! a factor converting between rescaled units if
+                                               !! tmp_scale is also present [B A-1 ~> b a-1].
+                                               !! Here scale and unscale are synonymous, but unscale
+                                               !! is preferred and takes precedence if both are present.
+  real :: global_volume_integral  !< The thickness-weighted sum of var in the arbitrary scaled [A ~> a] or [B ~> b] or
+                              !! unscaled [a] units of var, depending on which optional arguments are provided
+
+  ! Local variables
+  ! In the following comments, [A ~> a] is used to indicate the arbitrary, possibly rescaled units of the
+  ! input array while [a] indicates the unscaled (e.g., mks) units that can be used with the reproducing sums
+  ! [A ~> a] and [B ~> b] are the same units unless tmp_scale and unscale are both present.
+  real :: temp_scale ! A temporary scaling factor [a A-1 ~> 1] or [b B-1 ~> 1] or [1]
+  real :: scalefac   ! A scaling factor for the variable [a A-1 ~> 1] or [B A-1 ~> b a-1] or [1]
+  real :: weight_here ! The volume or mass of a grid cell [L2 m ~> m3] or [L2 kg m-2 ~> kg]
+  real, dimension(SZI_(G),SZJ_(G)) :: tmpForSumming ! The volume or mass integral of the variable in a column
+                                                  ! [B L2 m ~> b m3] or [B L2 kg m-2 ~> b kg] or
+                                                  ! [L2 a m ~> a m3] or [L2 a kg m-2 ~> a kg]
+  integer :: i, j, k, is, ie, js, je, nz
+  is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
+
+  temp_scale = 1.0 ; if (present(tmp_scale)) temp_scale = tmp_scale
+
+  scalefac = 1.0
+  if (present(unscale)) then ; scalefac = unscale
+  elseif (present(scale)) then ; scalefac = scale ; endif
+  tmpForSumming(:,:) = 0.
+
+  do k=1,nz ; do j=js,je ; do i=is,ie
+    weight_here  =  (GV%H_to_MKS * h(i,j,k)) * (G%areaT(i,j) * G%mask2dT(i,j))
+    tmpForSumming(i,j) = tmpForSumming(i,j) + scalefac * var(i,j,k) * weight_here
+  enddo ; enddo ; enddo
+  global_volume_integral = (reproducing_sum(tmpForSumming, unscale=temp_scale*G%US%L_to_m**2))
+
+end function global_volume_integral
+
 
 !> Find the global mass-weighted integral of a variable.  The presence of the optional tmp_scale
 !! argument determines whether the returned value is in scaled (if it is present) or unscaled units

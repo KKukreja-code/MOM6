@@ -420,6 +420,12 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
         Reg%Tr(m)%cell_hordiff_var_prod(i,j,k) = 0.0
       enddo ; enddo ; enddo
     endif
+    if (Reg%Tr(m)%id_hord_direct > 0) then
+      do i = is,ie; do j=js,je; do k=1,nz
+        Reg%Tr(m)%var_hord_pre(i,j,k) = h(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*Idt*&
+        (Reg%Tr(m)%t(i,j,k)**2)
+      enddo; enddo; enddo
+    endif
   enddo
 
   if (CS%use_hor_bnd_diffusion) then
@@ -630,6 +636,16 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
     do m=1,ntr
       if (Reg%Tr(m)%id_leftint_variance_production> 0) then
         call post_data(Reg%Tr(m)%id_leftint_variance_production, Reg%Tr(m)%leftint_hordiff_var_prod, CS%diag)
+      endif
+    enddo
+    do m=1,ntr
+      if (Reg%Tr(m)%id_hord_direct > 0) then
+        do i=is,ie; do j=js,je; do k=1,nz
+          Reg%Tr(m)%var_hord_post(i,j,k) = h(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*Idt*&
+          (Reg%Tr(m)%t(i,j,k)**2)
+          Reg%Tr(m)%var_hord_del(i,j,k) = Reg%Tr(m)%var_hord_post(i,j,k) - Reg%Tr(m)%var_hord_pre(i,j,k)
+        enddo; enddo; enddo
+        call post_data(Reg%Tr(m)%id_hord_direct, Reg%Tr(m)%var_hord_del, CS%diag)
       endif
     enddo
   endif   ! endif for CS%use_neutral_diffusion

@@ -30,6 +30,18 @@ type, public :: tracer_type
 
   real, dimension(:,:,:), pointer :: df_x           => NULL() !< diagnostic array for x-diffusive tracer flux
                                                               !! [CU H L2 T-1 ~> conc m3 s-1 or conc kg s-1]
+  real, dimension(:,:,:), pointer :: var_advec_pre  => NULL() !< diagnostic array for pre-advection volume-weighted
+                                                              !! tracer concentration^2
+  real, dimension(:,:,:), pointer :: var_advec_post  => NULL() !< diagnostic array for post-advection volume-weighted
+                                                              !! tracer concentration^2
+  real, dimension(:,:,:), pointer :: var_advec_del  => NULL() !< diagnostic array for change in volume-weighted
+                                                              !! tracer concentration^2 due to advection
+  real, dimension(:,:,:), pointer :: var_hord_pre  => NULL() !< diagnostic array for pre-hor_diff volume-weighted
+                                                              !! tracer concentration^2
+  real, dimension(:,:,:), pointer :: var_hord_post  => NULL() !< diagnostic array for post-hor_diff volume-weighted
+                                                              !! tracer concentration^2
+  real, dimension(:,:,:), pointer :: var_hord_del  => NULL() !< diagnostic array for change in volume-weighted
+                                                              !! tracer concentration^2 due to hor_diff
   real, dimension(:,:,:), pointer :: df_y           => NULL() !< diagnostic array for y-diffusive tracer flux
                                                               !! [conc H L2 T-1 ~> conc m3 s-1 or conc kg s-1]
   real, dimension(:,:,:), pointer :: hbd_dfx       => NULL()  !< diagnostic array for x-diffusive tracer flux
@@ -139,6 +151,8 @@ type, public :: tracer_type
   integer :: id_zint = -1, id_zint_100m = -1, id_surf = -1
   integer :: id_net_surfflux = -1, id_NLT_tendency = -1, id_NLT_budget = -1
   integer :: id_advection_scheme_variance_production = -1
+  integer :: id_asvp_direct = -1
+  integer :: id_hord_direct = -1
   integer :: id_remap_variance_production = -1, id_remap_variance_production_2d = -1
   integer :: id_hordiff_variance_production = -1
   integer :: id_leftint_variance_production = -1

@@ -444,6 +444,14 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
         trim(shortnm)//"_advection_scheme_variance_production", diag%axesTL, Time, &
         "Spurious variance production of "//trim(shortnm)//" variance due to advection", &
         trim(unit2)//" m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
+    Tr%id_asvp_direct = register_diag_field("ocean_model", &
+        trim(shortnm)//"_asvp_direct", diag%axesTL, Time, &
+        "Spurious variance production of "//trim(shortnm)//" variance due to advection (direct)", &
+        trim(unit2)//" m3 s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*(US%L_to_m**2)*US%s_to_T)
+    Tr%id_hord_direct = register_diag_field("ocean_model", &
+        trim(shortnm)//"_hord_direct", diag%axesTL, Time, &
+        "Spurious variance production of "//trim(shortnm)//" variance due to hor_diff (direct)", &
+        trim(unit2)//" m3 s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*(US%L_to_m**2)*US%s_to_T)
     Tr%id_hordiff_variance_production = register_diag_field("ocean_model", &
           trim(Tr%flux_nameroot)//"_hordiff_variance_production", diag%axesTL, Time, &
           "Spurious variance production of "//trim(shortnm)//" variance due to horizontal diffusion", &
@@ -470,6 +478,18 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
     if (Tr%id_dfy > 0) call safe_alloc_ptr(Tr%df_y,isd,ied,JsdB,JedB,nz)
     if (Tr%id_hbd_dfx > 0) call safe_alloc_ptr(Tr%hbd_dfx,IsdB,IedB,jsd,jed,nz)
     if (Tr%id_hbd_dfy > 0) call safe_alloc_ptr(Tr%hbd_dfy,isd,ied,JsdB,JedB,nz)
+    if (Tr%id_asvp_direct > 0) call &
+    safe_alloc_ptr(Tr%var_advec_pre,isd,ied,jsd,jed,nz)
+    if (Tr%id_asvp_direct > 0) call &
+    safe_alloc_ptr(Tr%var_advec_post,isd,ied,jsd,jed,nz)
+    if (Tr%id_asvp_direct > 0) call &
+    safe_alloc_ptr(Tr%var_advec_del,isd,ied,jsd,jed,nz)
+    if (Tr%id_hord_direct > 0) call &
+    safe_alloc_ptr(Tr%var_hord_pre,isd,ied,jsd,jed,nz)
+    if (Tr%id_hord_direct > 0) call &
+    safe_alloc_ptr(Tr%var_hord_post,isd,ied,jsd,jed,nz)
+    if (Tr%id_hord_direct > 0) call &
+    safe_alloc_ptr(Tr%var_hord_del,isd,ied,jsd,jed,nz)
     if (Tr%id_hordiff_variance_production > 0) call &
     safe_alloc_ptr(Tr%leftint_hordiff_var_prod,isd,ied,jsd,jed,nz)
     if (Tr%id_hordiff_variance_production > 0) call &

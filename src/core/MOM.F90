@@ -1480,9 +1480,12 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
   integer :: halo_sz ! The size of a halo where data must be valid.
   logical :: x_first ! If true, advect tracers first in the x-direction, then y.
   logical :: showCallTree
-  integer :: i, j, k, m ! Loop counters
-  showCallTree = callTree_showQuery()
 
+  integer :: ntr
+  integer :: i, j, k, is, ie, js, je, nz, m ! Loop counters
+  showCallTree = callTree_showQuery()
+  ntr = CS%tracer_Reg%ntr
+  is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
   if (CS%debug) then
     call cpu_clock_begin(id_clock_other)
     call hchksum(h,"Pre-advection h", G%HI, haloshift=1, unscale=GV%H_to_MKS)
@@ -1510,8 +1513,27 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
     x_first = (MODULO(G%first_direction,2) == 0)
   endif
   if (CS%debug) call MOM_tracer_chksum("Pre-advect ", CS%tracer_Reg, G)
+  do m=1,ntr
+    if (CS%tracer_Reg%Tr(m)%id_asvp_direct > 0) then
+      do i = is, ie; do j = js, je; do k = 1, nz
+        CS%tracer_Reg%Tr(m)%var_advec_pre(i,j,k) = (CS%diag_pre_dyn%h_state(i,j,k)*G%areaT(i,j)*&
+        G%mask2dT(i,j)*(CS%tracer_Reg%Tr(m)%t(i,j,k)**2))/CS%t_dyn_rel_adv
+      enddo; enddo; enddo
+    endif
+  enddo
   call advect_tracer(h, CS%uhtr, CS%vhtr, CS%OBC, CS%t_dyn_rel_adv, G, GV, US, &
                      CS%tracer_adv_CSp, CS%tracer_Reg, x_first_in=x_first)
+  do m=1,ntr
+    if (CS%tracer_Reg%Tr(m)%id_asvp_direct > 0) then
+      do i = is, ie; do j = js, je; do k = 1, nz
+        CS%tracer_Reg%Tr(m)%var_advec_post(i,j,k) = (h(i,j,k)*G%areaT(i,j)*&
+        G%mask2dT(i,j)*(CS%tracer_Reg%Tr(m)%t(i,j,k)**2))/CS%t_dyn_rel_adv
+        CS%tracer_Reg%Tr(m)%var_advec_del(i,j,k) = CS%tracer_Reg%Tr(m)%var_advec_post(i,j,k) - &
+        CS%tracer_Reg%Tr(m)%var_advec_pre(i,j,k)
+      enddo; enddo; enddo
+      call post_data(CS%tracer_Reg%Tr(m)%id_asvp_direct, CS%tracer_Reg%Tr(m)%var_advec_del, CS%diag)
+    endif
+  enddo
   if (CS%debug) call MOM_tracer_chksum("Post-advect ", CS%tracer_Reg, G)
   call tracer_hordiff(h, CS%t_dyn_rel_adv, CS%MEKE, CS%VarMix, CS%visc, G, GV, US, &
                       CS%tracer_diff_CSp, CS%tracer_Reg, CS%tv)
