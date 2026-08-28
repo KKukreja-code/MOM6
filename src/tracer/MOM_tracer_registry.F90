@@ -456,10 +456,6 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
           trim(Tr%flux_nameroot)//"_hordiff_variance_production", diag%axesTL, Time, &
           "Spurious variance production of "//trim(shortnm)//" variance due to horizontal diffusion", &
           trim(unit2)//" m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
-    Tr%id_leftint_variance_production = register_diag_field("ocean_model", &
-          trim(Tr%flux_nameroot)//"_leftint_variance_production", diag%axesTL, Time, &
-          "Variance production of "//trim(shortnm)//" due to horizontal diffusion at left interface", &
-          trim(unit2)//" m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
     Tr%id_zint = register_diag_field("ocean_model", trim(shortnm)//"_zint", &
         diag%axesT1, Time, &
         "Thickness-weighted integral of " // trim(longname), &

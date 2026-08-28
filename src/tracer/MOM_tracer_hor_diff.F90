@@ -634,11 +634,6 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
 
     enddo ! End of "while" loop.
     do m=1,ntr
-      if (Reg%Tr(m)%id_leftint_variance_production> 0) then
-        call post_data(Reg%Tr(m)%id_leftint_variance_production, Reg%Tr(m)%leftint_hordiff_var_prod, CS%diag)
-      endif
-    enddo
-    do m=1,ntr
       if (Reg%Tr(m)%id_hord_direct > 0) then
         do i=is,ie; do j=js,je; do k=1,nz
           Reg%Tr(m)%var_hord_post(i,j,k) = h(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*Idt*&

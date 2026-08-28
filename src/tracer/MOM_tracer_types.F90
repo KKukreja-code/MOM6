@@ -162,7 +162,6 @@ type, public :: tracer_type
   integer :: id_remap_variance_production = -1, id_remap_variance_production_2d = -1
   integer :: id_rvpd_direct = -1
   integer :: id_hordiff_variance_production = -1
-  integer :: id_leftint_variance_production = -1
   !>@}
 end type tracer_type
 
