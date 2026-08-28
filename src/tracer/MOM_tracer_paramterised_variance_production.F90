@@ -91,7 +91,7 @@ end subroutine compute_cell_hordiff_variance_production
 
 !< Subroutine to compute the variance production at cell centres due to diabatic diffusion. Diabatic diffusion
 !! (i.e. mixing) destroys variance so the output for this diagnostic will be negative.
-subroutine T_cell_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, temp_diag, T_cell_var_prod)
+subroutine T_cell_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, temp_new, temp_diag, T_cell_var_prod)
 
   type(ocean_grid_type),                        intent(in) :: G         !< Ocean grid structure
   type(verticalGrid_type),                      intent(in) :: GV        !< Ocean vertical grid structure
@@ -101,6 +101,7 @@ subroutine T_cell_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, temp
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)+1),  intent(in) :: Tdif_flx  !< diffusive diapycnal heat flux across
                                                                         !! interfaces
                                                                         !! [C H T-1 ~> degC m s-1 or degC kg m-2 s-1]
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)),    intent(in) :: temp_new  !! Updated temperatures [C ~> degC]
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)),    intent(in) :: temp_diag !< Diagnostic array of previous
                                                                         !! temperatures [C ~> degC]
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)), intent(inout) :: T_cell_var_prod !< Averaged variance production in cell
@@ -108,30 +109,20 @@ subroutine T_cell_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, temp
                                                                               !! [CU2 H T-1 ~> conc2 m s-1]
 
   ! Local variables
-  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)+1) :: T_int_var_prod_down !< Variance production due to diabatic diffusion
-                                                                     !! at an interface, when sequentially updating
-                                                                     !! tracer content from top to bottom
-  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)+1) :: T_int_var_prod_up   !< Variance production due to diabatic diffusion
-                                                                     !! at an interface, when sequentially updating
-                                                                     !! tracer content from bottom to top
+  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)+1) :: T_int_var_prod !< Variance production due to diabatic diffusion
+                                                                     !! at an interface
   integer :: is, ie, js, je, nz  !< Grid cell centre and layer indexes
   integer :: i, j, k             !< Counters
 
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
-  T_int_var_prod_down(:,:,:) = 0.0
-  T_int_var_prod_up(:,:,:) = 0.0
+  T_int_var_prod(:,:,:) = 0.0
 
   do K=2,nz ; do j=js,je ; do i=is,ie
-    T_int_var_prod_down(i,j,K) = ((dt*Tdif_flx(i,j,K))**2) * ((1/h(i,j,K-1))+(1/h(i,j,K))) + &
-    2 * (dt*Tdif_flx(i,j,K)) * (temp_diag(i,j,K)-temp_diag(i,j,K-1)-(dt*Tdif_flx(i,j,K-1)/h(i,j,K-1)))
-    T_int_var_prod_down(i,j,K) = Idt * T_int_var_prod_down(i,j,K)
-    T_int_var_prod_up(i,j,K) = ((dt*Tdif_flx(i,j,K))**2) * ((1/h(i,j,K-1))+(1/h(i,j,K))) + &
-    2 * (dt*Tdif_flx(i,j,K)) * (temp_diag(i,j,K)-temp_diag(i,j,K-1)-(dt*Tdif_flx(i,j,K+1)/h(i,j,K)))
-    T_int_var_prod_up(i,j,K) = Idt * T_int_var_prod_up(i,j,K)
+    T_int_var_prod(i,j,K) = Tdif_flx(i,j,K)*Idt*(temp_diag(i,j,K)-temp_diag(i,j,K-1) +&
+     temp_new(i,j,K) - temp_new(i,j,K-1))
   enddo ; enddo ; enddo
   do k=1,nz ; do j=js,je ; do i=is,ie
-    T_cell_var_prod(i,j,k) = 0.5 * ((T_int_var_prod_down(i,j,k)+T_int_var_prod_down(i,j,k+1))/2 + &
-                                    (T_int_var_prod_up(i,j,k)+T_int_var_prod_up(i,j,k+1))/2)
+    T_cell_var_prod(i,j,k) = (T_int_var_prod(i,j,k)+T_int_var_prod(i,j,k+1))/2
   enddo ; enddo ; enddo
 
 end subroutine T_cell_diabatic_variance_production

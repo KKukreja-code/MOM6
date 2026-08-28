@@ -1752,7 +1752,7 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
   endif
   if (CS%id_T_diabatic_diff_var_prod > 0) then
     T_cell_var_prod(:,:,:) = 0.
-    call T_cell_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, temp_diag, T_cell_var_prod)
+    call T_cell_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, tv%T, temp_diag, T_cell_var_prod)
     call post_data(CS%id_T_diabatic_diff_var_prod, T_cell_var_prod, CS%diag)
   endif
 
