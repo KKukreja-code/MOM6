@@ -974,6 +974,12 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
         else
           compute_variance = .false.
       endif
+      if ((Tr%id_rvpd_direct>0) .and. present(dt)) then
+        do i=G%isc,G%iec; do j=G%jsc,G%jec; do k=1,nz
+          Tr%var_remap_pre(i,j,k) = h_old(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*Idt*&
+          (Tr%t(i,j,k)**2)
+        enddo; enddo; enddo
+      endif
       do j = G%jsc,G%jec ; do i = G%isc,G%iec ; if (G%mask2dT(i,j)>0.) then
         ! Build the start and final grids
         h1(:) = h_old(i,j,:)
@@ -1013,6 +1019,15 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
       ! post temperature after remapping has occured, possibly temporary as this should be T at end of timestep
       if (Tr%name == "temp") then;
         if (CS%id_T_postale> 0) call post_data(CS%id_T_postale, Tr%t, CS%diag)
+      endif
+
+      if ((Tr%id_rvpd_direct>0) .and. present(dt)) then
+        do i=G%isc,G%iec; do j=G%jsc,G%jec; do k=1,nz
+          Tr%var_remap_post(i,j,k) = h_new(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*Idt*&
+          (Tr%t(i,j,k)**2)
+          Tr%var_remap_del(i,j,k) = Tr%var_remap_post(i,j,k) - Tr%var_remap_pre(i,j,k)
+        enddo; enddo; enddo
+        call post_data(Tr%id_rvpd_direct, Tr%var_remap_del, CS%diag)
       endif
 
       ! tendency diagnostics.

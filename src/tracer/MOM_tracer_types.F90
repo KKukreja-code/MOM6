@@ -42,6 +42,12 @@ type, public :: tracer_type
                                                               !! tracer concentration^2
   real, dimension(:,:,:), pointer :: var_hord_del  => NULL() !< diagnostic array for change in volume-weighted
                                                               !! tracer concentration^2 due to hor_diff
+  real, dimension(:,:,:), pointer :: var_remap_pre  => NULL() !< diagnostic array for pre-remap volume-weighted
+                                                              !! tracer concentration^2
+  real, dimension(:,:,:), pointer :: var_remap_post  => NULL() !< diagnostic array for post-remap volume-weighted
+                                                              !! tracer concentration^2
+  real, dimension(:,:,:), pointer :: var_remap_del  => NULL() !< diagnostic array for change in volume-weighted
+                                                              !! tracer concentration^2 due to remap
   real, dimension(:,:,:), pointer :: df_y           => NULL() !< diagnostic array for y-diffusive tracer flux
                                                               !! [conc H L2 T-1 ~> conc m3 s-1 or conc kg s-1]
   real, dimension(:,:,:), pointer :: hbd_dfx       => NULL()  !< diagnostic array for x-diffusive tracer flux
@@ -154,6 +160,7 @@ type, public :: tracer_type
   integer :: id_asvp_direct = -1
   integer :: id_hord_direct = -1
   integer :: id_remap_variance_production = -1, id_remap_variance_production_2d = -1
+  integer :: id_rvpd_direct = -1
   integer :: id_hordiff_variance_production = -1
   integer :: id_leftint_variance_production = -1
   !>@}
