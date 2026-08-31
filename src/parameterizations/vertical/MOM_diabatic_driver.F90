@@ -1609,13 +1609,6 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     call diagnose_boundary_forcing_tendency(tv, h, temp_diag, saln_diag, h_orig, dt, G, GV, US, CS)
     if (CS%id_boundary_forcing_h > 0) call post_data(CS%id_boundary_forcing_h, h, CS%diag, alt_h=h_orig)
   endif
-  ! if (CS%id_T_ddvp_direct > 0) then
-  !   do i=is,ie; do j=js,je; do k=1,nz
-      ! T_var_diab_pre(i,j,k) = h(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*Idt*&
-      ! (tv%T(i,j,k)**2)
-      ! T_var_diab_pre(i,j,k) = h(i,j,k)*(tv%T(i,j,k)**2)
-  !   enddo; enddo; enddo
-  ! endif
   ! Boundary fluxes may have changed T, S, and h
   call diag_update_remap_grids(CS%diag)
   call cpu_clock_end(id_clock_remap)
@@ -1677,15 +1670,6 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     call tracer_vertdiff_Eulerian(h, ent_t, dt, tv%T, G, GV)
     call tracer_vertdiff_Eulerian(h, ent_s, dt, tv%S, G, GV)
 
-    if (CS%id_T_ddvp_direct>0) then
-      do i=is,ie; do j=js,je; do k=1,nz
-        ! T_var_diab_post(i,j,k) = h(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*Idt*&
-        ! (tv%T(i,j,k)**2)
-        ! T_var_diab_post(i,j,k) = h(i,j,k)*(tv%T(i,j,k)**2)
-        T_var_diab_del(i,j,k) = h(i,j,k)*(tv%T(i,j,k)**2 - temp_diag(i,j,k)**2)*Idt
-      enddo; enddo; enddo
-      call post_data(CS%id_T_ddvp_direct, T_var_diab_del, CS%diag)
-    endif
     ! In ALE-mode, layer thicknesses do not change. Therefore, we can use h below
     if (CS%diabatic_diff_tendency_diag) then
       call diagnose_diabatic_diff_tendency(tv, h, temp_diag, saln_diag, dt, G, GV, US, CS)
@@ -1754,8 +1738,14 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
   endif
   if (CS%id_T_diabatic_diff_var_prod > 0) then
     T_cell_var_prod(:,:,:) = 0.
-    call T_cell_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, tv%T, temp_diag, T_cell_var_prod)
+    call T_cell_diabatic_variance_production(G, GV, Tdif_flx, tv%T, temp_diag, T_cell_var_prod)
     call post_data(CS%id_T_diabatic_diff_var_prod, T_cell_var_prod, CS%diag)
+  endif
+  if (CS%id_T_ddvp_direct > 0) then
+    do i=is,ie; do j=js,je; do k=1,nz
+      T_var_diab_del(i,j,k) = h(i,j,k)*(tv%T(i,j,k)**2 - temp_diag(i,j,k)**2)*Idt
+    enddo; enddo; enddo
+    call post_data(CS%id_T_ddvp_direct, T_var_diab_del, CS%diag)
   endif
 
   if (CS%Use_KdWork_diag .or. CS%Use_N2_diag) then

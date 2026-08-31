@@ -91,13 +91,10 @@ end subroutine compute_cell_hordiff_variance_production
 
 !< Subroutine to compute the variance production at cell centres due to diabatic diffusion. Diabatic diffusion
 !! (i.e. mixing) destroys variance so the output for this diagnostic will be negative.
-subroutine T_cell_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, temp_new, temp_diag, T_cell_var_prod)
+subroutine T_cell_diabatic_variance_production(G, GV, Tdif_flx, temp_new, temp_diag, T_cell_var_prod)
 
   type(ocean_grid_type),                        intent(in) :: G         !< Ocean grid structure
   type(verticalGrid_type),                      intent(in) :: GV        !< Ocean vertical grid structure
-  real,                                         intent(in) :: dt        !< time increment [T ~> s]
-  real,                                         intent(in) :: Idt       !< Inverse time interval [T-1 ~> s-1]
-  real, dimension(SZI_(G),SZJ_(G),SZK_(GV)),    intent(in) :: h         !< thickness [H ~> m or kg m-2]
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)+1),  intent(in) :: Tdif_flx  !< diffusive diapycnal heat flux across
                                                                         !! interfaces
                                                                         !! [C H T-1 ~> degC m s-1 or degC kg m-2 s-1]
@@ -110,19 +107,19 @@ subroutine T_cell_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, temp
 
   ! Local variables
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)+1) :: T_int_var_prod !< Variance production due to diabatic diffusion
-                                                                     !! at an interface
+                                                                !! at an interface [CU2 H T-1 ~> conc2 m s-1]
   integer :: is, ie, js, je, nz  !< Grid cell centre and layer indexes
   integer :: i, j, k             !< Counters
 
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
   T_int_var_prod(:,:,:) = 0.0
 
-  do K=2,nz ; do j=js,je ; do i=is,ie
-    T_int_var_prod(i,j,K) = Tdif_flx(i,j,K)*(temp_diag(i,j,K)-temp_diag(i,j,K-1) +&
-     temp_new(i,j,K) - temp_new(i,j,K-1))
+  do i=is,ie ; do j=js,je ; do K=2,nz
+    T_int_var_prod(i,j,K) = Tdif_flx(i,j,K)*((temp_diag(i,j,K)- temp_diag(i,j,K-1)) + &
+                                             (temp_new(i,j,K) - temp_new(i,j,K-1)))
   enddo ; enddo ; enddo
-  do k=1,nz ; do j=js,je ; do i=is,ie
-    T_cell_var_prod(i,j,k) = (T_int_var_prod(i,j,k)+T_int_var_prod(i,j,k+1))/2
+  do i=is,ie ; do j=js,je ; do K=1,nz
+    T_cell_var_prod(i,j,k) = 0.5*(T_int_var_prod(i,j,k)+T_int_var_prod(i,j,k+1))
   enddo ; enddo ; enddo
 
 end subroutine T_cell_diabatic_variance_production
