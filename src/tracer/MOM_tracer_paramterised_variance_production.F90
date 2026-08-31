@@ -118,7 +118,7 @@ subroutine T_cell_diabatic_variance_production(G, GV, dt, Idt, h, Tdif_flx, temp
   T_int_var_prod(:,:,:) = 0.0
 
   do K=2,nz ; do j=js,je ; do i=is,ie
-    T_int_var_prod(i,j,K) = Tdif_flx(i,j,K)*Idt*(temp_diag(i,j,K)-temp_diag(i,j,K-1) +&
+    T_int_var_prod(i,j,K) = Tdif_flx(i,j,K)*(temp_diag(i,j,K)-temp_diag(i,j,K-1) +&
      temp_new(i,j,K) - temp_new(i,j,K-1))
   enddo ; enddo ; enddo
   do k=1,nz ; do j=js,je ; do i=is,ie
