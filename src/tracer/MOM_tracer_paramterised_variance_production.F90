@@ -48,7 +48,7 @@ subroutine hor_interface_variance_production(G, GV, Tr, Idt, Ihdxdy, h, Coef_x, 
     dtr_top = Ihdxdy(i,j) * (Coef_y(i,J,1) * (Tr%t(i,j,k) - Tr%t(i,j+1,k)))
     dtr_bottom = Ihdxdy(i,j) * (Coef_y(i,J-1,1) * (Tr%t(i,j-1,k) - Tr%t(i,j,k)))
     Tr%leftint_hordiff_var_prod(i,j,k) = Tr%leftint_hordiff_var_prod(i,j,k) + &
-    h(i,j,k) * G%areaT(i,j) Idt * (2*Tr%t(i,j,k)*dtr_left - dtr_left*dtr_right - dtr_left*dtr_top + &
+    h(i,j,k) * Idt * G%areaT(i,j) * (2*Tr%t(i,j,k)*dtr_left - dtr_left*dtr_right - dtr_left*dtr_top + &
     dtr_left*dtr_bottom + dtr_left*dtr_left)
     Tr%rightint_hordiff_var_prod(i,j,k) = Tr%rightint_hordiff_var_prod(i,j,k) + &
     h(i,j,k) * Idt * G%areaT(i,j) * (-2*Tr%t(i,j,k)*dtr_right - dtr_right*dtr_left - dtr_right*dtr_bottom + &
