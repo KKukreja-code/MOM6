@@ -1282,9 +1282,9 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     temp_diag, &  ! Diagnostic array of previous temperatures [C ~> degC]
     saln_diag, &  ! Diagnostic array of previous salinity [S ~> ppt]
     T_cell_var_prod, & ! Averaged variance production in cell due to diabatic diffusion [CU2 H T-1 ~> conc2 m s-1]
-    T_var_diab_pre, & ! Volume-weighted temperature squared before vert_diff [CU2 H L2 T-1 ~> conc2 m3 s-1]
-    T_var_diab_post, & ! Volume-weighted temperature squared after vert_diff [CU2 H L2 T-1 ~> conc2 m3 s-1]
-    T_var_diab_del ! Change in volume-weighted temperature squared during vert_diff [CU2 H L2 T-1 ~> conc2 m3 s-1]
+    ! T_var_diab_pre, & ! Volume-weighted temperature squared before vert_diff [CU2 H L2 T-1 ~> conc2 m3 s-1]
+    ! T_var_diab_post, & ! Volume-weighted temperature squared after vert_diff [CU2 H L2 T-1 ~> conc2 m3 s-1]
+    T_var_diab_del ! Change in volume-weighted temperature squared during vert_diff [CU2 H T-1 ~> conc2 m s-1]
 
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)+1) :: &
     ent_s,    & ! The diffusive coupling across interfaces within one time step for
@@ -1609,12 +1609,13 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     call diagnose_boundary_forcing_tendency(tv, h, temp_diag, saln_diag, h_orig, dt, G, GV, US, CS)
     if (CS%id_boundary_forcing_h > 0) call post_data(CS%id_boundary_forcing_h, h, CS%diag, alt_h=h_orig)
   endif
-  if (CS%id_T_ddvp_direct>0) then
-    do i=is,ie; do j=js,je; do k=1,nz
-      T_var_diab_pre(i,j,k) = h(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*Idt*&
-      (tv%T(i,j,k)**2)
-    enddo; enddo; enddo
-  endif
+  ! if (CS%id_T_ddvp_direct > 0) then
+  !   do i=is,ie; do j=js,je; do k=1,nz
+      ! T_var_diab_pre(i,j,k) = h(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*Idt*&
+      ! (tv%T(i,j,k)**2)
+      ! T_var_diab_pre(i,j,k) = h(i,j,k)*(tv%T(i,j,k)**2)
+  !   enddo; enddo; enddo
+  ! endif
   ! Boundary fluxes may have changed T, S, and h
   call diag_update_remap_grids(CS%diag)
   call cpu_clock_end(id_clock_remap)
@@ -1647,7 +1648,7 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     if (associated(tv%S) .and. associated(tv%salt_deficit)) &
       call adjust_salt(h, tv, G, GV, CS%diabatic_aux_CSp)
 
-    if (CS%diabatic_diff_tendency_diag .or. CS%id_T_diabatic_diff_var_prod > 0) then
+    if (CS%diabatic_diff_tendency_diag .or. CS%id_T_diabatic_diff_var_prod > 0 .or. CS%id_T_ddvp_direct > 0) then
       do k=1,nz ; do j=js,je ; do i=is,ie
         temp_diag(i,j,k) = tv%T(i,j,k)
         saln_diag(i,j,k) = tv%S(i,j,k)
@@ -1678,9 +1679,10 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
 
     if (CS%id_T_ddvp_direct>0) then
       do i=is,ie; do j=js,je; do k=1,nz
-        T_var_diab_post(i,j,k) = h(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*Idt*&
-        (tv%T(i,j,k)**2)
-        T_var_diab_del(i,j,k) = T_var_diab_post(i,j,k) - T_var_diab_pre(i,j,k)
+        ! T_var_diab_post(i,j,k) = h(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*Idt*&
+        ! (tv%T(i,j,k)**2)
+        ! T_var_diab_post(i,j,k) = h(i,j,k)*(tv%T(i,j,k)**2)
+        T_var_diab_del(i,j,k) = h(i,j,k)*(tv%T(i,j,k)**2 - temp_diag(i,j,k)**2)*Idt
       enddo; enddo; enddo
       call post_data(CS%id_T_ddvp_direct, T_var_diab_del, CS%diag)
     endif
@@ -3421,10 +3423,12 @@ subroutine diabatic_driver_init(Time, G, GV, US, param_file, useALEalgorithm, di
   CS%id_T_diabatic_diff_var_prod = register_diag_field('ocean_model', 'T_diabatic_diff_var_prod', &
     diag%axesTL, Time, 'Variance production in temperature due to diabatic diffusion at an interface', &
     'degC2 m s-1', conversion=(US%C_to_degC**2)*GV%H_to_MKS*US%s_to_T)
-  CS%id_T_ddvp_direct = register_diag_field("ocean_model", &
-    "T_ddvp_direct", diag%axesTL, Time, &
-    "Spurious variance production of temperature variance due to vert_diff (direct)", &
-    "degC2 m3 s-1", conversion=(US%C_to_degC**2)*GV%H_to_MKS*(US%L_to_m**2)*US%s_to_T)
+  ! CS%id_T_ddvp_direct = register_diag_field("ocean_model",'T_ddvp_direct', diag%axesTL, Time, &
+  !   'Spurious variance production of temperature variance due to vert_diff (direct)', &
+  !   'degC2 m3 s-1', conversion=(US%C_to_degC**2)*GV%H_to_MKS*(US%L_to_m**2)*US%s_to_T)
+  CS%id_T_ddvp_direct = register_diag_field("ocean_model",'T_ddvp_direct', diag%axesTL, Time, &
+    'Spurious variance production of temperature variance due to vert_diff (direct)', &
+    'degC2 m s-1', conversion=(US%C_to_degC**2)*GV%H_to_MKS*US%s_to_T)
   CS%id_ea_t = register_diag_field('ocean_model', 'ea_t', diag%axesTL, Time, &
       'Layer (heat) entrainment from above per timestep', 'm', conversion=GV%H_to_m)
   CS%id_eb_t = register_diag_field('ocean_model', 'eb_t', diag%axesTL, Time, &
