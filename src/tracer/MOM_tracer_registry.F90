@@ -11,7 +11,7 @@ module MOM_tracer_registry
 ! use MOM_diag_mediator, only : diag_ctrl
 use MOM_coms,          only : reproducing_sum
 use MOM_debugging,     only : hchksum
-use MOM_diag_mediator, only : diag_ctrl, register_diag_field, post_data, safe_alloc_ptr
+use MOM_diag_mediator, only : diag_ctrl, register_diag_field, post_data, safe_alloc_ptr, register_scalar_field
 use MOM_diag_mediator, only : diag_grid_storage
 use MOM_diag_mediator, only : diag_copy_storage_to_diag, diag_save_grids, diag_restore_grids
 use MOM_domains,       only : pass_var
@@ -320,7 +320,7 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)), &
                               intent(in) :: h    !< Layer thicknesses [H ~> m or kg m-2]
   type(time_type),            intent(in) :: Time !< current model time
-  type(diag_ctrl),            intent(in) :: diag !< structure to regulate diagnostic output
+  type(diag_ctrl),            intent(inout) :: diag !< structure to regulate diagnostic output
   logical,                    intent(in) :: use_ALE !< If true active diagnostics that only
                                                  !! apply to ALE configurations
   logical,                    intent(in) :: use_KPP !< If true active diagnostics that only
@@ -444,6 +444,12 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
         trim(shortnm)//"_advection_scheme_variance_production", diag%axesTL, Time, &
         "Spurious variance production of "//trim(shortnm)//" variance due to advection", &
         trim(unit2)//" m s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
+    Tr%id_post_adv_mean = register_scalar_field('ocean_model', trim(shortnm)//"_post_adv_mean", &
+        Time, diag, "Global Mean Ocean "//trim(shortnm)//" After Advection", units=units, &
+        conversion=Tr%conc_scale)
+    Tr%id_post_hord_mean = register_scalar_field('ocean_model', trim(shortnm)//"_post_hord_mean", &
+        Time, diag, "Global Mean Ocean "//trim(shortnm)//" After Hor_Diff", units=units, &
+        conversion=Tr%conc_scale)
     Tr%id_asvp_direct = register_diag_field("ocean_model", &
         trim(shortnm)//"_asvp_direct", diag%axesTL, Time, &
         "Spurious variance production of "//trim(shortnm)//" variance due to advection (direct)", &
@@ -686,7 +692,9 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
         trim(shortnm)//"_rvpd_direct", diag%axesTL, Time, &
         "Spurious variance production of "//trim(shortnm)//" variance due to remap (direct)", &
         trim(unit2)//" m3 s-1", conversion=(Tr%conc_scale**2)*GV%H_to_MKS*(US%L_to_m**2)*US%s_to_T)
-
+      Tr%id_post_remap_mean = register_scalar_field('ocean_model', trim(shortnm)//"_post_remap_mean", &
+        Time, diag, "Global Mean Ocean "//trim(shortnm)//" After Remap", units=units, &
+        conversion=Tr%conc_scale)
       if (Tr%id_rvpd_direct > 0) call &
       safe_alloc_ptr(Tr%var_remap_pre,isd,ied,jsd,jed,nz)
       if (Tr%id_rvpd_direct > 0) call &

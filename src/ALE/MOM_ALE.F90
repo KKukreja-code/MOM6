@@ -45,6 +45,7 @@ use MOM_remapping,        only : remappingSchemesDoc, remappingDefaultScheme
 use MOM_remapping,        only : interpolate_column, reintegrate_column
 use MOM_remapping,        only : remapping_CS, dzFromH1H2, remapping_set_param
 use MOM_string_functions, only : uppercase, extractWord, extract_integer
+use MOM_spatial_means,    only : global_volume_mean
 use MOM_tracer_registry,  only : tracer_registry_type, tracer_type, MOM_tracer_chkinv
 use MOM_unit_scaling,     only : unit_scale_type
 use MOM_variables,        only : ocean_grid_type, thermo_var_ptrs
@@ -1028,6 +1029,11 @@ subroutine ALE_remap_tracers(CS, G, GV, h_old, h_new, Reg, debug, dt, PCM_cell)
           Tr%var_remap_del(i,j,k) = Tr%var_remap_post(i,j,k) - Tr%var_remap_pre(i,j,k)
         enddo; enddo; enddo
         call post_data(Tr%id_rvpd_direct, Tr%var_remap_del, CS%diag)
+      endif
+
+      if (Tr%id_post_remap_mean>0) then
+        call post_data(Tr%id_post_remap_mean, global_volume_mean(Tr%t, h_new, G, GV, &
+        tmp_scale=Tr%conc_scale), CS%diag)
       endif
 
       ! tendency diagnostics.

@@ -16,7 +16,7 @@ use MOM_diabatic_aux,        only : diabatic_aux_init, diabatic_aux_end, diabati
 use MOM_diabatic_aux,        only : make_frazil, adjust_salt, differential_diffuse_T_S, triDiagTS
 use MOM_diabatic_aux,        only : triDiagTS_Eulerian, find_uv_at_h
 use MOM_diabatic_aux,        only : applyBoundaryFluxesInOut, set_pen_shortwave
-use MOM_diag_mediator,       only : post_data, register_diag_field, safe_alloc_ptr
+use MOM_diag_mediator,       only : post_data, register_diag_field, safe_alloc_ptr, register_scalar_field
 use MOM_diag_mediator,       only : post_product_sum_u, post_product_sum_v
 use MOM_diag_mediator,       only : diag_ctrl, time_type, diag_update_remap_grids
 use MOM_diag_mediator,       only : diag_ctrl, query_averaging_enabled, enable_averages, disable_averaging
@@ -66,6 +66,7 @@ use MOM_restart,             only : MOM_restart_CS
 use MOM_set_diffusivity,     only : set_diffusivity, set_BBL_TKE
 use MOM_set_diffusivity,     only : set_diffusivity_init, set_diffusivity_end
 use MOM_set_diffusivity,     only : set_diffusivity_CS
+use MOM_spatial_means,       only : global_volume_mean
 use MOM_sponge,              only : apply_sponge, sponge_CS
 use MOM_ALE_sponge,          only : apply_ALE_sponge, ALE_sponge_CS
 use MOM_time_manager,        only : time_type, real_to_time, operator(-), operator(<=)
@@ -219,6 +220,7 @@ type, public :: diabatic_CS ; private
   integer :: id_diabatic_diff_h = -1
   integer :: id_T_diabatic_diff_var_prod = -1
   integer :: id_T_ddvp_direct = -1
+  integer :: id_T_post_diab_mean = -1, id_T_post_forc_mean = -1
 
   integer :: id_boundary_forcing_h       = -1
   integer :: id_boundary_forcing_h_tendency   = -1
@@ -1609,6 +1611,10 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     call diagnose_boundary_forcing_tendency(tv, h, temp_diag, saln_diag, h_orig, dt, G, GV, US, CS)
     if (CS%id_boundary_forcing_h > 0) call post_data(CS%id_boundary_forcing_h, h, CS%diag, alt_h=h_orig)
   endif
+  if (CS%id_T_post_forc_mean>0) then
+    call post_data(CS%id_T_post_forc_mean, global_volume_mean(tv%T, h, G, GV, &
+    tmp_scale=US%C_to_degC), CS%diag)
+  endif
   ! Boundary fluxes may have changed T, S, and h
   call diag_update_remap_grids(CS%diag)
   call cpu_clock_end(id_clock_remap)
@@ -1747,7 +1753,10 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     enddo; enddo; enddo
     call post_data(CS%id_T_ddvp_direct, T_var_diab_del, CS%diag)
   endif
-
+  if (CS%id_T_post_diab_mean>0) then
+    call post_data(CS%id_T_post_diab_mean, global_volume_mean(tv%T, h, G, GV, &
+    tmp_scale=US%C_to_degC), CS%diag)
+  endif
   if (CS%Use_KdWork_diag .or. CS%Use_N2_diag) then
     N2_salt(:,:,:) = 0.0
     N2_temp(:,:,:) = 0.0
@@ -3419,6 +3428,12 @@ subroutine diabatic_driver_init(Time, G, GV, US, param_file, useALEalgorithm, di
   CS%id_T_ddvp_direct = register_diag_field("ocean_model",'T_ddvp_direct', diag%axesTL, Time, &
     'Spurious variance production of temperature variance due to vert_diff (direct)', &
     'degC2 m s-1', conversion=(US%C_to_degC**2)*GV%H_to_MKS*US%s_to_T)
+  CS%id_T_post_diab_mean = register_scalar_field('ocean_model', "T_post_diab_mean", &
+        Time, diag, "Global Mean Ocean Potential Temperature After Diab_diff", units='degC', &
+        conversion=US%C_to_degC)
+  CS%id_T_post_forc_mean = register_scalar_field('ocean_model', "T_post_forc_mean", &
+        Time, diag, "Global Mean Ocean Potential Temperature After Forcing", units='degC', &
+        conversion=US%C_to_degC)
   CS%id_ea_t = register_diag_field('ocean_model', 'ea_t', diag%axesTL, Time, &
       'Layer (heat) entrainment from above per timestep', 'm', conversion=GV%H_to_m)
   CS%id_eb_t = register_diag_field('ocean_model', 'eb_t', diag%axesTL, Time, &

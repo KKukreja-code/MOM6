@@ -45,7 +45,7 @@ use MOM_obsolete_params,      only : find_obsolete_params
 use MOM_restart,              only : register_restart_field, register_restart_pair, save_restart
 use MOM_restart,              only : query_initialized, set_initialized, restart_registry_lock
 use MOM_restart,              only : restart_init, is_new_run, determine_is_new_run, MOM_restart_CS
-use MOM_spatial_means,        only : global_mass_integral
+use MOM_spatial_means,        only : global_mass_integral, global_volume_mean
 use MOM_time_manager,         only : time_type, real_to_time, time_type_to_real, operator(+)
 use MOM_time_manager,         only : operator(-), operator(>), operator(*), operator(/)
 use MOM_time_manager,         only : operator(>=), operator(==), increment_date
@@ -1524,6 +1524,10 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
   call advect_tracer(h, CS%uhtr, CS%vhtr, CS%OBC, CS%t_dyn_rel_adv, G, GV, US, &
                      CS%tracer_adv_CSp, CS%tracer_Reg, x_first_in=x_first)
   do m=1,ntr
+    if (CS%tracer_Reg%Tr(m)%id_post_adv_mean>0) then
+      call post_data(CS%tracer_Reg%Tr(m)%id_post_adv_mean, global_volume_mean(CS%tracer_Reg%Tr(m)%t, h, G, GV, &
+      tmp_scale=CS%tracer_Reg%Tr(m)%conc_scale), CS%diag)
+    endif
     if (CS%tracer_Reg%Tr(m)%id_asvp_direct > 0) then
       do i = is, ie; do j = js, je; do k = 1, nz
         CS%tracer_Reg%Tr(m)%var_advec_post(i,j,k) = (h(i,j,k)*G%areaT(i,j)*&
@@ -1535,8 +1539,32 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
     endif
   enddo
   if (CS%debug) call MOM_tracer_chksum("Post-advect ", CS%tracer_Reg, G)
+  do m=1,ntr
+    if (CS%tracer_Reg%Tr(m)%id_hord_direct > 0) then
+      do i = is,ie; do j=js,je; do k=1,nz
+        CS%tracer_Reg%Tr(m)%var_hord_pre(i,j,k) = (h(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*&
+        (CS%tracer_Reg%Tr(m)%t(i,j,k)**2))/CS%t_dyn_rel_adv
+      enddo; enddo; enddo
+    endif
+  enddo
   call tracer_hordiff(h, CS%t_dyn_rel_adv, CS%MEKE, CS%VarMix, CS%visc, G, GV, US, &
                       CS%tracer_diff_CSp, CS%tracer_Reg, CS%tv)
+  do m=1,ntr
+    if (CS%tracer_Reg%Tr(m)%id_hord_direct > 0) then
+      do i=is,ie; do j=js,je; do k=1,nz
+        CS%tracer_Reg%Tr(m)%var_hord_post(i,j,k) = (h(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*&
+        (CS%tracer_Reg%Tr(m)%t(i,j,k)**2))/CS%t_dyn_rel_adv
+        CS%tracer_Reg%Tr(m)%var_hord_del(i,j,k) = CS%tracer_Reg%Tr(m)%var_hord_post(i,j,k) - CS%tracer_Reg%Tr(m)%var_hord_pre(i,j,k)
+      enddo; enddo; enddo
+      call post_data(CS%tracer_Reg%Tr(m)%id_hord_direct, CS%tracer_Reg%Tr(m)%var_hord_del, CS%diag)
+    endif
+  enddo
+  do m=1,ntr
+    if (CS%tracer_Reg%Tr(m)%id_post_hord_mean>0) then
+      call post_data(CS%tracer_Reg%Tr(m)%id_post_hord_mean, global_volume_mean(CS%tracer_Reg%Tr(m)%t, h, G, GV, &
+      tmp_scale=CS%tracer_Reg%Tr(m)%conc_scale), CS%diag)
+    endif
+  enddo
   if (CS%debug) call MOM_tracer_chksum("Post-diffuse ", CS%tracer_Reg, G)
   if (showCallTree) call callTree_waypoint("finished tracer advection/diffusion (step_MOM)")
   if (associated(CS%OBC)) then
