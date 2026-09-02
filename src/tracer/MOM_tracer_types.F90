@@ -162,6 +162,7 @@ type, public :: tracer_type
   integer :: id_remap_variance_production = -1, id_remap_variance_production_2d = -1
   integer :: id_rvpd_direct = -1
   integer :: id_hordiff_variance_production = -1
+  integer :: id_pre_adv_mean = -1
   integer :: id_post_adv_mean = -1, id_post_hord_mean = -1, id_post_remap_mean = -1
   !>@}
 end type tracer_type

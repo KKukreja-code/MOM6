@@ -1514,6 +1514,10 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
   endif
   if (CS%debug) call MOM_tracer_chksum("Pre-advect ", CS%tracer_Reg, G)
   do m=1,ntr
+    if (CS%tracer_Reg%Tr(m)%id_pre_adv_mean>0) then
+      call post_data(CS%tracer_Reg%Tr(m)%id_pre_adv_mean, global_volume_mean(CS%tracer_Reg%Tr(m)%t,&
+      CS%diag_pre_dyn%h_state, G, GV, tmp_scale=CS%tracer_Reg%Tr(m)%conc_scale), CS%diag)
+    endif
     if (CS%tracer_Reg%Tr(m)%id_asvp_direct > 0) then
       do i = is, ie; do j = js, je; do k = 1, nz
         CS%tracer_Reg%Tr(m)%var_advec_pre(i,j,k) = (CS%diag_pre_dyn%h_state(i,j,k)*G%areaT(i,j)*&
