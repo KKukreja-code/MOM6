@@ -21,6 +21,7 @@ use MOM_hor_index,     only : hor_index_type
 use MOM_grid,          only : ocean_grid_type
 use MOM_io,            only : vardesc, query_vardesc, cmor_long_std
 use MOM_restart,       only : register_restart_field, MOM_restart_CS
+use MOM_spatial_means, only : global_volume_mean
 use MOM_string_functions, only : lowercase
 use MOM_time_manager,  only : time_type
 use MOM_unit_scaling,  only : unit_scale_type
@@ -801,9 +802,10 @@ end subroutine postALE_tracer_diagnostics
 
 !> Post tracer diganostics when that should only be posted when MOM's state
 !! is self-consistent (also referred to as 'synchronized')
-subroutine post_tracer_diagnostics_at_sync(Reg, h, diag_prev, diag, G, GV, dt)
+subroutine post_tracer_diagnostics_at_sync(Reg, h, diag_prev, diag, G, GV, US, dt)
   type(ocean_grid_type),      intent(in) :: G    !< The ocean's grid structure
   type(verticalGrid_type),    intent(in) :: GV   !< The ocean's vertical grid structure
+  type(unit_scale_type),      intent(in) :: US   !< A dimensional unit scaling type
   type(tracer_registry_type), pointer    :: Reg  !< pointer to the tracer registry
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)), &
                               intent(in) :: h    !< Layer thicknesses [H ~> m or kg m-2]
@@ -816,6 +818,7 @@ subroutine post_tracer_diagnostics_at_sync(Reg, h, diag_prev, diag, G, GV, dt)
                                      ! in [CU H T-1 ~> conc m s-1 or conc kg m-2 s-1]
   real    :: Idt ! The inverse of the time step [T-1 ~> s-1]
   type(tracer_type), pointer :: Tr=>NULL()
+  real :: t_bar_prev, t_bar_cur ! Global tracer concentration means in the previous and current sync state
   integer :: i, j, k, is, ie, js, je, nz, m
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
 
@@ -827,6 +830,16 @@ subroutine post_tracer_diagnostics_at_sync(Reg, h, diag_prev, diag, G, GV, dt)
   do m=1,Reg%ntr ; if (Reg%Tr(m)%registry_diags) then
     Tr => Reg%Tr(m)
     if (Tr%id_tr > 0) call post_data(Tr%id_tr, Tr%t, diag)
+    if (Tr%id_tot_step_var>0) then
+      work3d(:,:,:) = 0.0
+      t_bar_cur = global_volume_mean(Tr%t, h, G, GV, tmp_scale=US%C_to_degC)
+      t_bar_prev = global_volume_mean(Tr%t_prev, diag_prev%h_state, G, GV, tmp_scale=US%C_to_degC)
+      do i=is,ie; do j=js,je; do k=1,nz
+        work3d(i,j,k) = (h(i,j,k) * ((Tr%t(i,j,k) - t_bar_cur)**2) - diag_prev%h_state(i,j,k) * &
+        ((Tr%t_prev(i,j,k)-t_bar_prev)**2))*Idt
+      enddo;enddo;enddo
+      call post_data(Tr%id_tot_step_var, work3d, diag)
+    endif
     if (Tr%id_tendency > 0) then
       work3d(:,:,:) = 0.0
       do k=1,nz ; do j=js,je ; do i=is,ie

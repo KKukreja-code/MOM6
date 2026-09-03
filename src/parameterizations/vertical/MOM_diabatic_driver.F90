@@ -219,7 +219,7 @@ type, public :: diabatic_CS ; private
   integer :: id_diabatic_diff_salt_tend_2d  = -1
   integer :: id_diabatic_diff_h = -1
   integer :: id_T_diabatic_diff_var_prod = -1
-  integer :: id_T_ddvp_direct = -1
+  integer :: id_T_ddvp_direct = -1, id_T_forc_vp = -1
   integer :: id_T_post_diab_mean = -1, id_T_post_forc_mean = -1
 
   integer :: id_boundary_forcing_h       = -1
@@ -1286,7 +1286,8 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
     T_cell_var_prod, & ! Averaged variance production in cell due to diabatic diffusion [CU2 H T-1 ~> conc2 m s-1]
     ! T_var_diab_pre, & ! Volume-weighted temperature squared before vert_diff [CU2 H L2 T-1 ~> conc2 m3 s-1]
     ! T_var_diab_post, & ! Volume-weighted temperature squared after vert_diff [CU2 H L2 T-1 ~> conc2 m3 s-1]
-    T_var_diab_del ! Change in volume-weighted temperature squared during vert_diff [CU2 H T-1 ~> conc2 m s-1]
+    T_var_diab_del, & ! Change in volume-weighted temperature squared during vert_diff [CU2 H T-1 ~> conc2 m s-1]
+    work3d ! Store temporary calculations in 3 dimensions
 
   real, dimension(SZI_(G),SZJ_(G),SZK_(GV)+1) :: &
     ent_s,    & ! The diffusive coupling across interfaces within one time step for
@@ -1347,6 +1348,8 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
   real :: g_Rho0       ! G_Earth/Rho0 [H T-2 R-1 ~> m4 s-2 kg-1 or m s-2]
   real :: H_to_pres    ! A conversion factor from thicknesses to pressure [R L2 T-2 H-1 ~> Pa m-1 or Pa m2 kg-1]
   real :: alt_H_to_pres! A conversion factor from thicknesses to pressure w/ alternative scaling [R Z T-2 ~> Pa m-1]
+  real :: T_bar_cur    ! Global mean temperature after surface forcing [degC]
+  real :: T_bar_prev   ! Global mean temperature before surface forcing [degC]
   logical :: nonBous   ! True if not using the Boussinesq approximation
 
   integer, dimension(2) :: EOSdom ! The i-computational domain for the equation of state
@@ -1538,7 +1541,7 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
   do k=1,nz ; do j=js,je ; do i=is,ie
     h_orig(i,j,k) = h(i,j,k)
   enddo ; enddo ; enddo
-  if (CS%boundary_forcing_tendency_diag) then
+  if (CS%boundary_forcing_tendency_diag .or. CS%id_T_forc_vp > 0) then
     do k=1,nz ; do j=js,je ; do i=is,ie
       temp_diag(i,j,k) = tv%T(i,j,k)
       saln_diag(i,j,k) = tv%S(i,j,k)
@@ -1607,6 +1610,16 @@ subroutine diabatic_ALE(u, v, h, tv, BLD, fluxes, visc, ADp, CDp, dt, Time_end, 
   ! diagnose the tendencies due to boundary forcing
   ! At this point, the diagnostic grids have not been updated since the call to the boundary layer scheme
   !  so all tendency diagnostics need to be posted on h_orig, and grids rebuilt afterwards
+  if (CS%id_T_forc_vp > 0) then
+    T_bar_prev = global_volume_mean(temp_diag, h_orig, G, GV, tmp_scale=US%C_to_degC)
+    T_bar_cur = global_volume_mean(tv%T, h, G, GV, tmp_scale=US%C_to_degC)
+    work3d(:,:,:) = 0.0
+    do i=is,ie; do j=js,je; do k=1,nz
+      work3d(i,j,k) = (h(i,j,k) * ((tv%T(i,j,k) - T_bar_cur)**2) - h_orig(i,j,k) * &
+      ((temp_diag(i,j,k)-T_bar_prev)**2))/dt
+    enddo;enddo;enddo
+    call post_data(CS%id_T_forc_vp, work3d, CS%diag)
+  endif
   if (CS%boundary_forcing_tendency_diag) then
     call diagnose_boundary_forcing_tendency(tv, h, temp_diag, saln_diag, h_orig, dt, G, GV, US, CS)
     if (CS%id_boundary_forcing_h > 0) call post_data(CS%id_boundary_forcing_h, h, CS%diag, alt_h=h_orig)
@@ -3427,6 +3440,9 @@ subroutine diabatic_driver_init(Time, G, GV, US, param_file, useALEalgorithm, di
   !   'degC2 m3 s-1', conversion=(US%C_to_degC**2)*GV%H_to_MKS*(US%L_to_m**2)*US%s_to_T)
   CS%id_T_ddvp_direct = register_diag_field("ocean_model",'T_ddvp_direct', diag%axesTL, Time, &
     'Spurious variance production of temperature variance due to vert_diff (direct)', &
+    'degC2 m s-1', conversion=(US%C_to_degC**2)*GV%H_to_MKS*US%s_to_T)
+  CS%id_T_forc_vp = register_diag_field("ocean_model",'T_forc_vp', diag%axesTL, Time, &
+    'Spurious variance production of temperature variance due to forcing', &
     'degC2 m s-1', conversion=(US%C_to_degC**2)*GV%H_to_MKS*US%s_to_T)
   CS%id_T_post_diab_mean = register_scalar_field('ocean_model', "T_post_diab_mean", &
         Time, diag, "Global Mean Ocean Potential Temperature After Diab_diff", units='degC', &

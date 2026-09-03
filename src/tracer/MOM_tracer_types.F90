@@ -164,6 +164,7 @@ type, public :: tracer_type
   integer :: id_hordiff_variance_production = -1
   integer :: id_pre_adv_mean = -1
   integer :: id_post_adv_mean = -1, id_post_hord_mean = -1, id_post_remap_mean = -1
+  integer :: id_tot_step_var = -1
   !>@}
 end type tracer_type
 
