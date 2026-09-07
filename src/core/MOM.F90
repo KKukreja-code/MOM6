@@ -1557,8 +1557,9 @@ subroutine step_MOM_tracer_dyn(CS, G, GV, US, h, Time_local)
     if (CS%tracer_Reg%Tr(m)%id_hord_direct > 0) then
       do i=is,ie; do j=js,je; do k=1,nz
         CS%tracer_Reg%Tr(m)%var_hord_post(i,j,k) = (h(i,j,k)*G%areaT(i,j)*G%mask2dT(i,j)*&
-        (CS%tracer_Reg%Tr(m)%t(i,j,k)**2))/CS%t_dyn_rel_adv
-        CS%tracer_Reg%Tr(m)%var_hord_del(i,j,k) = CS%tracer_Reg%Tr(m)%var_hord_post(i,j,k) - CS%tracer_Reg%Tr(m)%var_hord_pre(i,j,k)
+                                                   (CS%tracer_Reg%Tr(m)%t(i,j,k)**2))/CS%t_dyn_rel_adv
+        CS%tracer_Reg%Tr(m)%var_hord_del(i,j,k) = CS%tracer_Reg%Tr(m)%var_hord_post(i,j,k) - &
+                                                  CS%tracer_Reg%Tr(m)%var_hord_pre(i,j,k)
       enddo; enddo; enddo
       call post_data(CS%tracer_Reg%Tr(m)%id_hord_direct, CS%tracer_Reg%Tr(m)%var_hord_del, CS%diag)
     endif
