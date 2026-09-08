@@ -561,7 +561,7 @@ subroutine register_tracer_diagnostics(Reg, h, Time, diag, G, GV, US, use_ALE, u
     Tr%id_tot_step_var = register_diag_field('ocean_model', trim(shortnm)//'_tot_step_var', &
         diag%axesTL, Time, &
         'Net variance tendency for '//trim(lowercase(longname)), &
-        trim(unit2)//' m2 s-1', conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
+        trim(unit2)//' m s-1', conversion=(Tr%conc_scale**2)*GV%H_to_MKS*US%s_to_T)
 
     if ((Tr%id_tendency > 0) .or. (Tr%id_advection_scheme_variance_production > 0) &
     .or. (Tr%id_tot_step_var > 0)) then
