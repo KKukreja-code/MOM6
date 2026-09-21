@@ -614,6 +614,7 @@ subroutine tracer_hordiff(h, dt, MEKE, VarMix, visc, G, GV, US, CS, Reg, tv, do_
             Reg%Tr(m)%df2d_y(i,J) = Reg%Tr(m)%df2d_y(i,J) + Coef_y(i,J,1) &
                 * (Reg%Tr(m)%t(i,j,k) - Reg%Tr(m)%t(i,j+1,k)) * Idt
           enddo ; enddo ; endif
+          ! Computer interface variance production due to horizontal mixing.
           if (associated(Reg%Tr(m)%leftint_hordiff_var_prod)) then
             call hor_interface_variance_production(G, GV, Reg%Tr(m), Idt, Ihdxdy, h, Coef_x, Coef_y, k)
           endif

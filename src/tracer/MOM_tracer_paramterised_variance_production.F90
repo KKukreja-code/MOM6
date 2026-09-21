@@ -1,4 +1,4 @@
-! This module contains subroutines to calculate how horizontal and vertical diffusion destroy tracer variance
+! This module contains subroutines to calculate how horizontal and vertical diffusion change tracer variance locally.
 module MOM_tracer_parameterised_variance_production
 
 use MOM_grid,          only : ocean_grid_type
@@ -43,10 +43,15 @@ subroutine hor_interface_variance_production(G, GV, Tr, Idt, Ihdxdy, h, Coef_x, 
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec
 
   do i = is,ie ; do j = js,je
+    ! Calculating the change in tracer caused by diffusive fluxes at the left, right, top, and bottom
+    ! interfaces of a cell
     dtr_left = Ihdxdy(i,j) * (Coef_x(I-1,j,1) * (Tr%t(i-1,j,k) - Tr%t(i,j,k)))
     dtr_right = Ihdxdy(i,j) * (Coef_x(I,j,1) * (Tr%t(i,j,k) - Tr%t(i+1,j,k)))
     dtr_top = Ihdxdy(i,j) * (Coef_y(i,J,1) * (Tr%t(i,j,k) - Tr%t(i,j+1,k)))
     dtr_bottom = Ihdxdy(i,j) * (Coef_y(i,J-1,1) * (Tr%t(i,j-1,k) - Tr%t(i,j,k)))
+
+    ! Assigning terms in expansion of thickness-weighted squared tracer concentration for a cell to each
+    ! interface; see manuscript for derivation.
     Tr%leftint_hordiff_var_prod(i,j,k) = Tr%leftint_hordiff_var_prod(i,j,k) + &
     h(i,j,k) * Idt * G%areaT(i,j) * (2*Tr%t(i,j,k)*dtr_left - dtr_left*dtr_right - dtr_left*dtr_top + &
     dtr_left*dtr_bottom + dtr_left*dtr_left)
@@ -79,6 +84,8 @@ subroutine compute_cell_hordiff_variance_production(G, GV, Tr)
   call pass_var(Tr%topint_hordiff_var_prod, G%Domain, halo=1)
   call pass_var(Tr%bottomint_hordiff_var_prod, G%Domain, halo=1)
 
+  ! Computing a grid-cell variance production diagnostic by splitting variance change at each
+  ! interface equally between its two neighbouring cells.
   do i=is,ie ; do j=js,je ; do k=1,nz
     Tr%cell_hordiff_var_prod(i,j,k) = &
     0.5 * (Tr%leftint_hordiff_var_prod(i,j,k)   + Tr%rightint_hordiff_var_prod(i,j,k) + &
@@ -89,8 +96,7 @@ subroutine compute_cell_hordiff_variance_production(G, GV, Tr)
 
 end subroutine compute_cell_hordiff_variance_production
 
-!< Subroutine to compute the variance production at cell centres due to diabatic diffusion. Diabatic diffusion
-!! (i.e. mixing) destroys variance so the output for this diagnostic will be negative.
+!< Subroutine to compute the variance production at cell centres due to diabatic diffusion.
 subroutine T_cell_diabatic_variance_production(G, GV, Tdif_flx, temp_new, temp_diag, T_cell_var_prod)
 
   type(ocean_grid_type),                        intent(in) :: G         !< Ocean grid structure
@@ -114,10 +120,17 @@ subroutine T_cell_diabatic_variance_production(G, GV, Tdif_flx, temp_new, temp_d
   is = G%isc ; ie = G%iec ; js = G%jsc ; je = G%jec ; nz = GV%ke
   T_int_var_prod(:,:,:) = 0.0
 
+  ! See manuscript for deriving interface variance production by expanding the change in thickness-weighted squared
+  ! tracer concentration in a cell due to vertical mixing, and assigning resulting terms to the relevant interface.
+  ! This calculation involves substituting the update equation for grid cell tracer concentration due to vertical
+  ! mixing to simplify the expression for interface variance production.
+
   do i=is,ie ; do j=js,je ; do K=2,nz
     T_int_var_prod(i,j,K) = Tdif_flx(i,j,K)*((temp_diag(i,j,K)- temp_diag(i,j,K-1)) + &
                                              (temp_new(i,j,K) - temp_new(i,j,K-1)))
   enddo ; enddo ; enddo
+
+  ! Equally split variance production at an interface across its two neighbouring cells to get a grid cell measure.
   do i=is,ie ; do j=js,je ; do K=1,nz
     T_cell_var_prod(i,j,k) = 0.5*(T_int_var_prod(i,j,k)+T_int_var_prod(i,j,k+1))
   enddo ; enddo ; enddo
